@@ -73,6 +73,16 @@ class GlobalExceptionHandlerTest {
     }
 
     @Test
+    void handleIllegalArgument_returns400() {
+        ResponseEntity<ErrorResponse> response =
+                handler.handleIllegalArgument(new IllegalArgumentException("invalid input"));
+
+        assertThat(response.getStatusCode()).isEqualTo(HttpStatus.BAD_REQUEST);
+        assertThat(response.getBody().error().code()).isEqualTo("BAD_REQUEST");
+        assertThat(response.getBody().error().message()).isEqualTo("invalid input");
+    }
+
+    @Test
     void handleGeneral_returns500() {
         ResponseEntity<ErrorResponse> response =
                 handler.handleGeneral(new RuntimeException("unexpected"));

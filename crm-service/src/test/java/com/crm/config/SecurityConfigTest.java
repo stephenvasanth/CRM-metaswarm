@@ -1,12 +1,14 @@
 package com.crm.config;
 
+import com.crm.domain.auth.AuthService;
+import com.crm.domain.user.UserService;
 import com.crm.security.JwtAuthenticationFilter;
 import com.crm.security.JwtProperties;
 import com.crm.security.JwtTokenProvider;
-import com.crm.security.StubUserDetailsService;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.boot.test.mock.mockito.MockBean;
 import org.springframework.context.annotation.Import;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.security.crypto.password.PasswordEncoder;
@@ -18,8 +20,14 @@ import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.
 
 @WebMvcTest
 @Import({SecurityConfig.class, JwtTokenProvider.class, JwtProperties.class,
-        JwtAuthenticationFilter.class, StubUserDetailsService.class})
+        JwtAuthenticationFilter.class})
 class SecurityConfigTest {
+
+    @MockBean
+    private UserService userService;
+
+    @MockBean
+    private AuthService authService;
 
     @Autowired
     private MockMvc mockMvc;
