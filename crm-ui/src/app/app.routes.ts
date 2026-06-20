@@ -27,6 +27,27 @@ export const appRoutes: Routes = [
           )
       },
       {
+        path: 'contacts/new',
+        loadComponent: () =>
+          import('./features/contacts/contact-form/contact-form.component').then(
+            (m) => m.ContactFormComponent
+          )
+      },
+      {
+        path: 'contacts/:id/edit',
+        loadComponent: () =>
+          import('./features/contacts/contact-form/contact-form.component').then(
+            (m) => m.ContactFormComponent
+          )
+      },
+      {
+        path: 'contacts/:id',
+        loadComponent: () =>
+          import('./features/contacts/contact-detail/contact-detail.component').then(
+            (m) => m.ContactDetailComponent
+          )
+      },
+      {
         path: 'deals',
         loadComponent: () =>
           import('./features/deals/deals-board/deals-board.component').then(
