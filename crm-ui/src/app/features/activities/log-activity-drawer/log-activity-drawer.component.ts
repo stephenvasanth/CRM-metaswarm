@@ -93,11 +93,12 @@ export class LogActivityDrawerComponent {
       return;
     }
     this.submitting = true;
+    const rawDate = this.form.value.occurredAt;
     const req: CreateActivityRequest = {
       subject: this.form.value.subject!,
       type: this.form.value.type as CreateActivityRequest['type'],
       notes: this.form.value.notes || undefined,
-      occurredAt: this.form.value.occurredAt || undefined,
+      occurredAt: rawDate ? new Date(rawDate).toISOString() : undefined,
       contactId: this.contactId,
       dealId: this.dealId,
     };

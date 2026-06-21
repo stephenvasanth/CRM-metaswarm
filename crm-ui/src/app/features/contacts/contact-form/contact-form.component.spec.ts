@@ -35,18 +35,22 @@ describe('ContactFormComponent', () => {
 
   const mockContact: Contact = {
     id: '1',
+    firstName: 'Alice',
+    lastName: 'Smith',
     name: 'Alice Smith',
     email: 'alice@example.com',
     phone: '555-1234',
     jobTitle: 'CEO',
     company: mockCompanies[0],
-    owner: { id: 'u1', name: 'Bob', email: 'bob@example.com' },
+    owner: { id: 'u1', name: 'Bob' },
     tags: [mockContactTag],
     createdAt: '2024-01-01T00:00:00Z',
   };
 
   const minimalContact: Contact = {
     id: '2',
+    firstName: 'Bob',
+    lastName: 'Jones',
     name: 'Bob Jones',
     email: 'bob@example.com',
     tags: [],
@@ -156,7 +160,7 @@ describe('ContactFormComponent', () => {
       component.form.controls.email.setValue('new@example.com');
       component.onSubmit();
       expect(contactServiceSpy.createContact).toHaveBeenCalledWith(
-        jasmine.objectContaining({ name: 'New Person', email: 'new@example.com' })
+        jasmine.objectContaining({ firstName: 'New', lastName: 'Person', email: 'new@example.com' })
       );
       expect(toastServiceSpy.add).toHaveBeenCalledWith('Contact created', 'success');
       expect(navigateSpy).toHaveBeenCalledWith(['/contacts', mockContact.id]);
@@ -229,7 +233,7 @@ describe('ContactFormComponent', () => {
       component.onSubmit();
       expect(contactServiceSpy.updateContact).toHaveBeenCalledWith(
         '1',
-        jasmine.objectContaining({ name: 'Alice Smith' })
+        jasmine.objectContaining({ firstName: 'Alice', lastName: 'Smith' })
       );
       expect(toastServiceSpy.add).toHaveBeenCalledWith('Contact updated', 'success');
       expect(navigateSpy).toHaveBeenCalledWith(['/contacts', mockContact.id]);

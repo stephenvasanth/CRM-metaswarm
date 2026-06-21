@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule } from '@angular/common';
+import { map } from 'rxjs/operators';
 import { ActivityService, Activity } from '../../../core/services/activity.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { ActivityCardComponent } from '../activity-card/activity-card.component';
@@ -74,12 +75,9 @@ export class ActivitiesFeedComponent implements OnInit {
       ? this.activityService.getByContact(this.contactId)
       : this.dealId !== undefined
         ? this.activityService.getByDeal(this.dealId)
-        : null;
-
-    if (!obs) {
-      this.loading = false;
-      return;
-    }
+        : this.activityService.getActivities().pipe(
+            map(page => page.content)
+          );
 
     obs.subscribe({
       next: (activities) => {

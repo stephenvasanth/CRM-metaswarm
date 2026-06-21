@@ -23,18 +23,22 @@ describe('ContactDetailComponent', () => {
 
   const fullContact: Contact = {
     id: '1',
+    firstName: 'Alice',
+    lastName: 'Smith',
     name: 'Alice Smith',
     email: 'alice@example.com',
     phone: '555-1234',
     jobTitle: 'CEO',
     company: { id: 'c1', name: 'Acme Corp' },
-    owner: { id: 'u1', name: 'Bob', email: 'bob@example.com' },
+    owner: { id: 'u1', name: 'Bob' },
     tags: [mockTag],
     createdAt: '2024-06-01T00:00:00Z',
   };
 
   const minimalContact: Contact = {
     id: '2',
+    firstName: 'Bob',
+    lastName: 'Jones',
     name: 'Bob Jones',
     email: 'bob@example.com',
     tags: [],

@@ -21,7 +21,7 @@ const minimalDeal: Deal = {
 };
 
 const mockContactPage: ContactPage = {
-  content: [{ id: 'c1', name: 'Alice', email: 'alice@example.com', tags: [], createdAt: '2024-01-01T00:00:00Z' }],
+  content: [{ id: 'c1', firstName: 'Alice', lastName: '', name: 'Alice', email: 'alice@example.com', tags: [], createdAt: '2024-01-01T00:00:00Z' }],
   totalElements: 1, totalPages: 1, number: 0, size: 20,
 };
 

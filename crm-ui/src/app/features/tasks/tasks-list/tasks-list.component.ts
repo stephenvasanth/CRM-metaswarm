@@ -1,5 +1,6 @@
 import { Component, Input, OnInit, inject } from '@angular/core';
 import { CommonModule, DatePipe } from '@angular/common';
+import { map } from 'rxjs/operators';
 import { TaskService, Task, CreateTaskRequest } from '../../../core/services/task.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { TaskDrawerComponent } from '../task-drawer/task-drawer.component';
@@ -99,12 +100,9 @@ export class TasksListComponent implements OnInit {
       ? this.taskService.getByContact(this.contactId)
       : this.dealId !== undefined
         ? this.taskService.getByDeal(this.dealId)
-        : null;
-
-    if (!obs) {
-      this.loading = false;
-      return;
-    }
+        : this.taskService.getTasks().pipe(
+            map(page => page.content)
+          );
 
     obs.subscribe({
       next: (tasks) => {

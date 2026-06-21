@@ -465,7 +465,7 @@ export class ContactFormComponent implements OnInit, OnDestroy {
 
   private patchForm(contact: Contact): void {
     this.form.patchValue({
-      name: contact.name,
+      name: contact.name || `${contact.firstName} ${contact.lastName}`.trim(),
       email: contact.email,
       phone: contact.phone ?? '',
       jobTitle: contact.jobTitle ?? '',
@@ -543,13 +543,17 @@ export class ContactFormComponent implements OnInit, OnDestroy {
     }
 
     const value = this.form.getRawValue();
+    const nameParts = value.name.trim().split(/\s+/);
+    const firstName = nameParts[0] ?? '';
+    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
     const req: CreateContactRequest = {
-      name: value.name,
+      firstName,
+      lastName,
       email: value.email,
       phone: value.phone || undefined,
       jobTitle: value.jobTitle || undefined,
-      companyId: value.companyId ?? undefined,
-      tagIds: value.tagIds,
+      companyId: value.companyId ? Number(value.companyId) : undefined,
+      tagIds: value.tagIds.map(Number),
     };
 
     this.submitting = true;

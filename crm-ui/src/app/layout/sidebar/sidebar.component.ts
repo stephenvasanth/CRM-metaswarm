@@ -17,7 +17,7 @@ interface NavItem {
     <nav class="sidebar" aria-label="Main navigation">
       <!-- Logo / App name -->
       <div class="sidebar__logo">
-        <span class="sidebar__logo-icon" aria-hidden="true">&#9698;</span>
+        <span class="sidebar__logo-icon" aria-hidden="true">◢</span>
         <span class="sidebar__logo-text">CRM</span>
       </div>
 
@@ -68,7 +68,7 @@ interface NavItem {
           class="sidebar__nav-link"
           aria-label="Profile"
         >
-          <span class="sidebar__nav-icon" aria-hidden="true">&#128100;</span>
+          <span class="sidebar__nav-icon" aria-hidden="true">👤</span>
           <span class="sidebar__nav-label">Profile</span>
         </a>
         <button
@@ -76,7 +76,7 @@ interface NavItem {
           (click)="authService.logout()"
           aria-label="Sign out"
         >
-          <span class="sidebar__nav-icon" aria-hidden="true">&#128682;</span>
+          <span class="sidebar__nav-icon" aria-hidden="true">🚪</span>
           <span class="sidebar__nav-label">Sign Out</span>
         </button>
       </div>
@@ -206,15 +206,15 @@ export class SidebarComponent {
   readonly authService = inject(AuthService);
 
   readonly mainNavItems: NavItem[] = [
-    { label: 'Dashboard', route: '/dashboard', icon: '&#9636;' },
-    { label: 'Contacts', route: '/contacts', icon: '&#128101;' },
-    { label: 'Deals', route: '/deals', icon: '&#128197;' },
-    { label: 'Activities', route: '/activities', icon: '&#128337;' },
-    { label: 'Tasks', route: '/tasks', icon: '&#9989;' }
+    { label: 'Dashboard', route: '/dashboard', icon: '▤' },
+    { label: 'Contacts', route: '/contacts', icon: '👥' },
+    { label: 'Deals', route: '/deals', icon: '📅' },
+    { label: 'Activities', route: '/activities', icon: '🕑' },
+    { label: 'Tasks', route: '/tasks', icon: '✅' }
   ];
 
   readonly adminNavItems: NavItem[] = [
-    { label: 'Users', route: '/admin/users', icon: '&#128373;' },
-    { label: 'Tags', route: '/admin/tags', icon: '&#127991;' }
+    { label: 'Users', route: '/admin/users', icon: '🕵' },
+    { label: 'Tags', route: '/admin/tags', icon: '🏷' }
   ];
 }
