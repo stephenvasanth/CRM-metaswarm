@@ -6,12 +6,14 @@ import com.crm.domain.task.dto.CreateTaskRequest;
 import com.crm.domain.task.dto.TaskDto;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
+import com.crm.util.PageData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -44,7 +46,7 @@ public class TaskService {
         String cacheKey = "tasks:page:" + page + ":" + size + ":" + completed;
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
-            return (Page<TaskDto>) cached;
+            return ((PageData<TaskDto>) cached).toPage();
         }
         Page<TaskDto> result;
         if (completed != null) {
@@ -56,7 +58,7 @@ public class TaskService {
                     .findAllByOrderByDueDateAsc(PageRequest.of(page, size))
                     .map(TaskDto::from);
         }
-        redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(cacheKey, PageData.of(result), 24, TimeUnit.HOURS);
         return result;
     }
 
@@ -68,9 +70,9 @@ public class TaskService {
         if (cached != null) {
             return (List<TaskDto>) cached;
         }
-        List<TaskDto> result = taskRepository
+        List<TaskDto> result = new ArrayList<>(taskRepository
                 .findByContactIdOrderByDueDateAsc(contactId)
-                .stream().map(TaskDto::from).toList();
+                .stream().map(TaskDto::from).toList());
         redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
         return result;
     }
@@ -83,9 +85,9 @@ public class TaskService {
         if (cached != null) {
             return (List<TaskDto>) cached;
         }
-        List<TaskDto> result = taskRepository
+        List<TaskDto> result = new ArrayList<>(taskRepository
                 .findByDealIdOrderByDueDateAsc(dealId)
-                .stream().map(TaskDto::from).toList();
+                .stream().map(TaskDto::from).toList());
         redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
         return result;
     }

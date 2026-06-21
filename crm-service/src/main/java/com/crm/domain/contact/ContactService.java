@@ -7,6 +7,7 @@ import com.crm.domain.tag.Tag;
 import com.crm.domain.tag.TagRepository;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
+import com.crm.util.PageData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -46,7 +47,7 @@ public class ContactService {
         String cacheKey = "contacts:page:" + page + ":" + size + ":" + search + ":" + tagId;
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
-            return (Page<ContactDto>) cached;
+            return ((PageData<ContactDto>) cached).toPage();
         }
         PageRequest pageable = PageRequest.of(page, size);
         Page<Contact> contactPage;
@@ -58,7 +59,7 @@ public class ContactService {
             contactPage = contactRepository.findAll(pageable);
         }
         Page<ContactDto> result = contactPage.map(ContactDto::from);
-        redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(cacheKey, PageData.of(result), 24, TimeUnit.HOURS);
         return result;
     }
 

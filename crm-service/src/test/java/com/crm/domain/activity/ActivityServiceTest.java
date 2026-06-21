@@ -9,6 +9,7 @@ import com.crm.domain.deal.DealRepository;
 import com.crm.domain.user.User;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
+import com.crm.util.PageData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -96,12 +97,12 @@ class ActivityServiceTest {
 
     @Test
     void findAll_cacheHit_returnsFromRedis() {
-        Page<ActivityDto> cached = new PageImpl<>(List.of());
-        when(valueOps.get("activities:page:0:20")).thenReturn(cached);
+        PageData<ActivityDto> cachedData = new PageData<>(List.of(), 0L, 0, 20);
+        when(valueOps.get("activities:page:0:20")).thenReturn(cachedData);
 
         Page<ActivityDto> result = activityService.findAll(0, 20);
 
-        assertThat(result).isEqualTo(cached);
+        assertThat(result).isEmpty();
         verify(activityRepository, never()).findAllByOrderByOccurredAtDesc(any(Pageable.class));
     }
 

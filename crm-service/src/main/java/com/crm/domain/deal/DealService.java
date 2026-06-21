@@ -17,7 +17,6 @@ import java.util.Map;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
-
 @Service
 @Transactional
 public class DealService {
@@ -44,9 +43,9 @@ public class DealService {
         if (cached != null) {
             return (List<DealDto>) cached;
         }
-        List<DealDto> result = dealRepository.findAll().stream()
+        List<DealDto> result = new ArrayList<>(dealRepository.findAll().stream()
                 .map(DealDto::from)
-                .toList();
+                .toList());
         redisTemplate.opsForValue().set("deals:all", result, 24, TimeUnit.HOURS);
         return result;
     }

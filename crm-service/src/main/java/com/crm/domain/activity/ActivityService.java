@@ -6,12 +6,14 @@ import com.crm.domain.contact.ContactRepository;
 import com.crm.domain.deal.DealRepository;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
+import com.crm.util.PageData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Set;
 import java.util.concurrent.TimeUnit;
@@ -44,12 +46,12 @@ public class ActivityService {
         String cacheKey = "activities:page:" + page + ":" + size;
         Object cached = redisTemplate.opsForValue().get(cacheKey);
         if (cached != null) {
-            return (Page<ActivityDto>) cached;
+            return ((PageData<ActivityDto>) cached).toPage();
         }
         Page<ActivityDto> result = activityRepository
                 .findAllByOrderByOccurredAtDesc(PageRequest.of(page, size))
                 .map(ActivityDto::from);
-        redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
+        redisTemplate.opsForValue().set(cacheKey, PageData.of(result), 24, TimeUnit.HOURS);
         return result;
     }
 
@@ -61,9 +63,9 @@ public class ActivityService {
         if (cached != null) {
             return (List<ActivityDto>) cached;
         }
-        List<ActivityDto> result = activityRepository
+        List<ActivityDto> result = new ArrayList<>(activityRepository
                 .findByContactIdOrderByOccurredAtDesc(contactId)
-                .stream().map(ActivityDto::from).toList();
+                .stream().map(ActivityDto::from).toList());
         redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
         return result;
     }
@@ -76,9 +78,9 @@ public class ActivityService {
         if (cached != null) {
             return (List<ActivityDto>) cached;
         }
-        List<ActivityDto> result = activityRepository
+        List<ActivityDto> result = new ArrayList<>(activityRepository
                 .findByDealIdOrderByOccurredAtDesc(dealId)
-                .stream().map(ActivityDto::from).toList();
+                .stream().map(ActivityDto::from).toList());
         redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);
         return result;
     }

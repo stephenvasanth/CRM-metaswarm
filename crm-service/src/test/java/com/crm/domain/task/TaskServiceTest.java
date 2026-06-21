@@ -9,6 +9,7 @@ import com.crm.domain.task.dto.TaskDto;
 import com.crm.domain.user.User;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
+import com.crm.util.PageData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -98,12 +99,12 @@ class TaskServiceTest {
 
     @Test
     void findAll_cacheHit_returnsFromRedis() {
-        Page<TaskDto> cached = new PageImpl<>(List.of());
-        when(valueOps.get("tasks:page:0:20:null")).thenReturn(cached);
+        PageData<TaskDto> cachedData = new PageData<>(List.of(), 0L, 0, 20);
+        when(valueOps.get("tasks:page:0:20:null")).thenReturn(cachedData);
 
         Page<TaskDto> result = taskService.findAll(0, 20, null);
 
-        assertThat(result).isEqualTo(cached);
+        assertThat(result).isEmpty();
         verify(taskRepository, never()).findAllByOrderByDueDateAsc(any(Pageable.class));
     }
 

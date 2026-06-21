@@ -7,6 +7,7 @@ import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
 import java.util.concurrent.TimeUnit;
@@ -37,9 +38,9 @@ public class TagService {
                 row -> ((Number) row[0]).longValue(),
                 row -> ((Number) row[1]).longValue()
         ));
-        List<TagDto> result = tagRepository.findAll().stream()
+        List<TagDto> result = new ArrayList<>(tagRepository.findAll().stream()
                 .map(tag -> TagDto.from(tag, countMap.getOrDefault(tag.getId(), 0L)))
-                .toList();
+                .toList());
         redisTemplate.opsForValue().set("tags:all", result, 24, TimeUnit.HOURS);
         return result;
     }

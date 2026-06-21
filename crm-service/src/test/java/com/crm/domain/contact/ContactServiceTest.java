@@ -17,6 +17,7 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
+import com.crm.util.PageData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -99,12 +100,12 @@ class ContactServiceTest {
 
     @Test
     void findAll_cacheHit_returnsFromRedis() {
-        Page<ContactDto> cached = new PageImpl<>(List.of());
-        when(valueOps.get(anyString())).thenReturn(cached);
+        PageData<ContactDto> cachedData = new PageData<>(List.of(), 0L, 0, 20);
+        when(valueOps.get(anyString())).thenReturn(cachedData);
 
         Page<ContactDto> result = contactService.findAll(0, 20, null, null);
 
-        assertThat(result).isEqualTo(cached);
+        assertThat(result).isEmpty();
         verify(contactRepository, never()).searchContacts(any(), any());
     }
 
