@@ -7,11 +7,13 @@ import { ToastService } from '../../../core/services/toast.service';
 import { AvatarComponent } from '../../../shared/components/avatar/avatar.component';
 import { TagChipComponent } from '../../../shared/components/tag-chip/tag-chip.component';
 import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialog/confirm-dialog.component';
+import { ActivitiesFeedComponent } from '../../activities/activities-feed/activities-feed.component';
+import { TasksListComponent } from '../../tasks/tasks-list/tasks-list.component';
 
 @Component({
   selector: 'app-contact-detail',
   standalone: true,
-  imports: [RouterLink, AvatarComponent, TagChipComponent, ConfirmDialogComponent],
+  imports: [RouterLink, AvatarComponent, TagChipComponent, ConfirmDialogComponent, ActivitiesFeedComponent, TasksListComponent],
   template: `
     @if (loading) {
       <div class="detail-loading" aria-live="polite" aria-busy="true">
@@ -111,9 +113,9 @@ import { ConfirmDialogComponent } from '../../../shared/components/confirm-dialo
 
             <div class="detail-tabs__content">
               @if (activeTab === 'activities') {
-                <p class="detail-tabs__placeholder">Activities will appear here after WU-11.</p>
+                <app-activities-feed [contactId]="+contact.id" />
               } @else {
-                <p class="detail-tabs__placeholder">Tasks will appear here after WU-12.</p>
+                <app-tasks-list [contactId]="+contact.id" />
               }
             </div>
           </main>

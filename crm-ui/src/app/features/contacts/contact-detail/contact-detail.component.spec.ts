@@ -5,6 +5,8 @@ import { of, throwError, Subject } from 'rxjs';
 import { ContactDetailComponent } from './contact-detail.component';
 import { ContactService, Contact, Tag } from '../../../core/services/contact.service';
 import { ToastService } from '../../../core/services/toast.service';
+import { ActivityService } from '../../../core/services/activity.service';
+import { TaskService } from '../../../core/services/task.service';
 
 describe('ContactDetailComponent', () => {
   let component: ContactDetailComponent;
@@ -43,6 +45,13 @@ describe('ContactDetailComponent', () => {
     contactServiceSpy = jasmine.createSpyObj('ContactService', ['getContact', 'deleteContact']);
     toastServiceSpy = jasmine.createSpyObj('ToastService', ['add']);
 
+    const activityServiceSpy = jasmine.createSpyObj('ActivityService', ['getByContact', 'getByDeal', 'getActivities', 'createActivity', 'deleteActivity']);
+    const taskServiceSpy = jasmine.createSpyObj('TaskService', ['getByContact', 'getByDeal', 'getTasks', 'createTask', 'updateTask', 'completeTask', 'deleteTask']);
+    activityServiceSpy.getByContact.and.returnValue(of([]));
+    activityServiceSpy.getByDeal.and.returnValue(of([]));
+    taskServiceSpy.getByContact.and.returnValue(of([]));
+    taskServiceSpy.getByDeal.and.returnValue(of([]));
+
     await TestBed.configureTestingModule({
       imports: [ContactDetailComponent],
       providers: [
@@ -50,6 +59,8 @@ describe('ContactDetailComponent', () => {
         { provide: ToastService, useValue: toastServiceSpy },
         provideRouter([]),
         { provide: ActivatedRoute, useValue: routeMock },
+        { provide: ActivityService, useValue: activityServiceSpy },
+        { provide: TaskService, useValue: taskServiceSpy },
       ],
     }).compileComponents();
 
@@ -201,18 +212,16 @@ describe('ContactDetailComponent', () => {
       expect(component.activeTab).toBe('tasks');
     });
 
-    it('should render activities placeholder on activities tab', () => {
+    it('should render activities feed on activities tab', () => {
       component.activeTab = 'activities';
       fixture.detectChanges();
-      const placeholder = fixture.nativeElement.querySelector('.detail-tabs__placeholder');
-      expect(placeholder.textContent).toContain('WU-11');
+      expect(fixture.nativeElement.querySelector('app-activities-feed')).toBeTruthy();
     });
 
-    it('should render tasks placeholder on tasks tab', () => {
+    it('should render tasks list on tasks tab', () => {
       component.setTab('tasks');
       fixture.detectChanges();
-      const placeholder = fixture.nativeElement.querySelector('.detail-tabs__placeholder');
-      expect(placeholder.textContent).toContain('WU-12');
+      expect(fixture.nativeElement.querySelector('app-tasks-list')).toBeTruthy();
     });
   });
 

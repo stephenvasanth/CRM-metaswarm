@@ -8,7 +8,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
 import java.util.List;
+import java.util.Map;
 import java.util.concurrent.TimeUnit;
+import java.util.stream.Collectors;
 
 @Service
 @Transactional
@@ -30,8 +32,13 @@ public class TagService {
         if (cached != null) {
             return (List<TagDto>) cached;
         }
+        List<Object[]> counts = tagRepository.countContactsPerTag();
+        Map<Long, Long> countMap = counts.stream().collect(Collectors.toMap(
+                row -> ((Number) row[0]).longValue(),
+                row -> ((Number) row[1]).longValue()
+        ));
         List<TagDto> result = tagRepository.findAll().stream()
-                .map(TagDto::from)
+                .map(tag -> TagDto.from(tag, countMap.getOrDefault(tag.getId(), 0L)))
                 .toList();
         redisTemplate.opsForValue().set("tags:all", result, 24, TimeUnit.HOURS);
         return result;

@@ -4,7 +4,7 @@ import { Router } from '@angular/router';
 import { of, throwError, Subject } from 'rxjs';
 import { ContactsListComponent } from './contacts-list.component';
 import { ContactService, Contact, ContactPage, Tag } from '../../../core/services/contact.service';
-import { TagService } from '../../../core/services/tag.service';
+import { TagService, TagWithCount } from '../../../core/services/tag.service';
 import { ToastService } from '../../../core/services/toast.service';
 
 describe('ContactsListComponent', () => {
@@ -15,7 +15,8 @@ describe('ContactsListComponent', () => {
   let toastServiceSpy: jasmine.SpyObj<ToastService>;
   let router: Router;
 
-  const mockTag: Tag = { id: 'tag-1', name: 'VIP', colour: '#4F46E5' };
+  const mockContactTag: Tag = { id: 'tag-1', name: 'VIP', colour: '#4F46E5' };
+  const mockAvailableTags: TagWithCount[] = [{ id: 1, name: 'VIP', colour: '#4F46E5', contactCount: 3 }];
 
   const fullContact: Contact = {
     id: '1',
@@ -25,7 +26,7 @@ describe('ContactsListComponent', () => {
     jobTitle: 'CEO',
     company: { id: 'c1', name: 'Acme Corp' },
     owner: { id: 'u1', name: 'Bob', email: 'bob@example.com' },
-    tags: [mockTag],
+    tags: [mockContactTag],
     createdAt: '2024-01-01T00:00:00Z',
   };
 
@@ -53,7 +54,6 @@ describe('ContactsListComponent', () => {
     size: 20,
   };
 
-  const mockTags: Tag[] = [mockTag];
 
   beforeEach(async () => {
     contactServiceSpy = jasmine.createSpyObj('ContactService', ['getContacts', 'deleteContact']);
@@ -61,7 +61,7 @@ describe('ContactsListComponent', () => {
     toastServiceSpy = jasmine.createSpyObj('ToastService', ['add']);
 
     contactServiceSpy.getContacts.and.returnValue(of(mockPage));
-    tagServiceSpy.getTags.and.returnValue(of(mockTags));
+    tagServiceSpy.getTags.and.returnValue(of(mockAvailableTags));
 
     await TestBed.configureTestingModule({
       imports: [ContactsListComponent],
@@ -87,7 +87,7 @@ describe('ContactsListComponent', () => {
     expect(tagServiceSpy.getTags).toHaveBeenCalled();
     expect(contactServiceSpy.getContacts).toHaveBeenCalled();
     expect(component.contacts.length).toBe(2);
-    expect(component.availableTags).toEqual(mockTags);
+    expect(component.availableTags).toEqual(mockAvailableTags);
   });
 
   it('should set totalElements and totalPages from page response', () => {

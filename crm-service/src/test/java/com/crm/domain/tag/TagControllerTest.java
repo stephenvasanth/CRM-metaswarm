@@ -44,7 +44,7 @@ class TagControllerTest {
     @Test
     @WithMockUser(username = "user@example.com", roles = "USER")
     void getAll_authenticated_returns200WithList() throws Exception {
-        when(tagService.findAll()).thenReturn(List.of(new TagDto(1L, "VIP", "#6366F1")));
+        when(tagService.findAll()).thenReturn(List.of(new TagDto(1L, "VIP", "#6366F1", 0L)));
 
         mockMvc.perform(get("/api/tags"))
                 .andExpect(status().isOk())
@@ -64,7 +64,7 @@ class TagControllerTest {
     void create_adminRole_returns201() throws Exception {
         CreateTagRequest req = new CreateTagRequest("VIP", "#6366F1");
         when(tagService.createTag(any(CreateTagRequest.class)))
-                .thenReturn(new TagDto(1L, "VIP", "#6366F1"));
+                .thenReturn(new TagDto(1L, "VIP", "#6366F1", 0L));
 
         mockMvc.perform(post("/api/tags")
                         .contentType(MediaType.APPLICATION_JSON)

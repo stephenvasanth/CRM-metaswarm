@@ -14,6 +14,7 @@ import org.mockito.quality.Strictness;
 import org.springframework.data.redis.core.RedisTemplate;
 import org.springframework.data.redis.core.ValueOperations;
 
+import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
 import java.util.concurrent.TimeUnit;
@@ -55,7 +56,7 @@ class TagServiceTest {
 
     @Test
     void findAll_cacheHit_returnsFromRedis() {
-        List<TagDto> cached = List.of(new TagDto(1L, "VIP", "#6366F1"));
+        List<TagDto> cached = List.of(new TagDto(1L, "VIP", "#6366F1", 3L));
         when(valueOps.get("tags:all")).thenReturn(cached);
 
         List<TagDto> result = tagService.findAll();
@@ -65,16 +66,33 @@ class TagServiceTest {
     }
 
     @Test
-    void findAll_cacheMiss_fetchesFromDbAndCaches() {
+    void findAll_cacheMiss_fetchesFromDbAndCachesWithCounts() {
         when(valueOps.get("tags:all")).thenReturn(null);
         Tag tag = buildTag(1L, "VIP", "#6366F1");
         when(tagRepository.findAll()).thenReturn(List.of(tag));
+        List<Object[]> counts = new ArrayList<>();
+        counts.add(new Object[]{1L, 5L});
+        when(tagRepository.countContactsPerTag()).thenReturn(counts);
 
         List<TagDto> result = tagService.findAll();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).name()).isEqualTo("VIP");
+        assertThat(result.get(0).contactCount()).isEqualTo(5L);
         verify(valueOps).set(eq("tags:all"), any(), eq(24L), eq(TimeUnit.HOURS));
+    }
+
+    @Test
+    void findAll_cacheMiss_withNoCountData_defaultsToZero() {
+        when(valueOps.get("tags:all")).thenReturn(null);
+        Tag tag = buildTag(1L, "VIP", "#6366F1");
+        when(tagRepository.findAll()).thenReturn(List.of(tag));
+        when(tagRepository.countContactsPerTag()).thenReturn(List.of());
+
+        List<TagDto> result = tagService.findAll();
+
+        assertThat(result).hasSize(1);
+        assertThat(result.get(0).contactCount()).isEqualTo(0L);
     }
 
     @Test

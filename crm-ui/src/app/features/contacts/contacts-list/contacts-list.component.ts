@@ -4,7 +4,7 @@ import { FormControl, ReactiveFormsModule } from '@angular/forms';
 import { Subject, takeUntil, debounceTime, distinctUntilChanged } from 'rxjs';
 import { Router } from '@angular/router';
 import { ContactService, Contact, Tag } from '../../../core/services/contact.service';
-import { TagService } from '../../../core/services/tag.service';
+import { TagService, TagWithCount } from '../../../core/services/tag.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { AvatarComponent } from '../../../shared/components/avatar/avatar.component';
 import { TagChipComponent } from '../../../shared/components/tag-chip/tag-chip.component';
@@ -445,7 +445,7 @@ export class ContactsListComponent implements OnInit, OnDestroy {
   contacts: Contact[] = [];
   totalElements = 0;
   totalPages = 0;
-  availableTags: Tag[] = [];
+  availableTags: TagWithCount[] = [];
   loading = false;
 
   contactToDelete: Contact | null = null;

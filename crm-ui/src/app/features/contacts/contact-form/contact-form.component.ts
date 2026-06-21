@@ -11,7 +11,7 @@ import {
   CreateContactRequest,
 } from '../../../core/services/contact.service';
 import { CompanyService } from '../../../core/services/company.service';
-import { TagService } from '../../../core/services/tag.service';
+import { TagService, TagWithCount } from '../../../core/services/tag.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { TagChipComponent } from '../../../shared/components/tag-chip/tag-chip.component';
 
@@ -409,7 +409,7 @@ export class ContactFormComponent implements OnInit, OnDestroy {
 
   companies: Company[] = [];
   filteredCompanies: Company[] = [];
-  availableTags: Tag[] = [];
+  availableTags: TagWithCount[] = [];
   showCompanyDropdown = false;
   showTagDropdown = false;
 
