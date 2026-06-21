@@ -5,7 +5,7 @@ WORKDIR /app
 
 # Copy package files and install dependencies first (layer-cache friendly)
 COPY package.json package-lock.json ./
-RUN npm ci
+RUN npm ci --legacy-peer-deps
 
 # Copy source and build for production
 COPY . .
