@@ -30,10 +30,10 @@ public class AuthService {
                 new UsernamePasswordAuthenticationToken(request.email(), request.password())
         );
 
-        String token = jwtTokenProvider.generateToken(request.email());
-
         User user = userRepository.findByEmail(request.email())
                 .orElseThrow(() -> new IllegalStateException("User not found after successful authentication"));
+
+        String token = jwtTokenProvider.generateToken(request.email(), user.getRole().name());
 
         return new LoginResponse(token, UserDto.from(user));
     }

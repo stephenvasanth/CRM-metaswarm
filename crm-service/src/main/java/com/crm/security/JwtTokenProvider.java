@@ -32,15 +32,23 @@ public class JwtTokenProvider {
     }
 
     public String generateToken(String username) {
+        return generateToken(username, null);
+    }
+
+    public String generateToken(String username, String role) {
         Date now = new Date();
         Date expiry = new Date(now.getTime() + jwtProperties.getExpirationMs());
 
-        return Jwts.builder()
+        var builder = Jwts.builder()
                 .subject(username)
                 .issuedAt(now)
-                .expiration(expiry)
-                .signWith(getSigningKey())
-                .compact();
+                .expiration(expiry);
+
+        if (role != null) {
+            builder.claim("role", role);
+        }
+
+        return builder.signWith(getSigningKey()).compact();
     }
 
     public String getUsernameFromToken(String token) {

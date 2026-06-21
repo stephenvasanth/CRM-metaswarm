@@ -52,8 +52,10 @@ public class ContactService {
         Page<Contact> contactPage;
         if (tagId != null) {
             contactPage = contactRepository.findByTagId(tagId, pageable);
-        } else {
+        } else if (search != null && !search.isBlank()) {
             contactPage = contactRepository.searchContacts(search, pageable);
+        } else {
+            contactPage = contactRepository.findAll(pageable);
         }
         Page<ContactDto> result = contactPage.map(ContactDto::from);
         redisTemplate.opsForValue().set(cacheKey, result, 24, TimeUnit.HOURS);

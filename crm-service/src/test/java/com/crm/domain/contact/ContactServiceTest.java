@@ -112,12 +112,13 @@ class ContactServiceTest {
     void findAll_cacheMiss_noFilter_fetchesAll() {
         when(valueOps.get(anyString())).thenReturn(null);
         Page<Contact> page = new PageImpl<>(List.of(testContact));
-        when(contactRepository.searchContacts(isNull(), any(Pageable.class))).thenReturn(page);
+        when(contactRepository.findAll(any(Pageable.class))).thenReturn(page);
 
         Page<ContactDto> result = contactService.findAll(0, 20, null, null);
 
         assertThat(result).hasSize(1);
         assertThat(result.getContent().get(0).firstName()).isEqualTo("Alice");
+        verify(contactRepository).findAll(any(Pageable.class));
         verify(valueOps).set(anyString(), any(), eq(24L), eq(TimeUnit.HOURS));
     }
 

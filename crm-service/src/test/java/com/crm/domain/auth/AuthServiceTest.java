@@ -62,14 +62,14 @@ class AuthServiceTest {
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(auth);
-        when(jwtTokenProvider.generateToken("user@example.com")).thenReturn("test.jwt.token");
+        when(jwtTokenProvider.generateToken("user@example.com", "USER")).thenReturn("test.jwt.token");
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(testUser));
 
         LoginResponse response = authService.login(request);
 
         assertThat(response.token()).isEqualTo("test.jwt.token");
         assertThat(response.user().email()).isEqualTo("user@example.com");
-        verify(jwtTokenProvider).generateToken("user@example.com");
+        verify(jwtTokenProvider).generateToken("user@example.com", "USER");
     }
 
     @Test
@@ -90,7 +90,6 @@ class AuthServiceTest {
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(auth);
-        when(jwtTokenProvider.generateToken("user@example.com")).thenReturn("test.jwt.token");
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.empty());
 
         org.assertj.core.api.Assertions.assertThatThrownBy(() -> authService.login(request))
@@ -108,16 +107,13 @@ class AuthServiceTest {
 
         when(authenticationManager.authenticate(any(UsernamePasswordAuthenticationToken.class)))
                 .thenReturn(auth);
-        when(jwtTokenProvider.generateToken("user@example.com")).thenReturn("test.jwt.token");
+        when(jwtTokenProvider.generateToken("user@example.com", "USER")).thenReturn("test.jwt.token");
         when(userRepository.findByEmail("user@example.com")).thenReturn(Optional.of(testUser));
 
         LoginResponse response = authService.login(request);
 
-        // The token is returned in the response — but verify it was generated
-        // using only the username, not the raw password
         assertThat(response.token()).isNotNull();
-        // Verify password was never passed to token generator
-        verify(jwtTokenProvider).generateToken("user@example.com");
-        verify(jwtTokenProvider, never()).generateToken("Password1!");
+        verify(jwtTokenProvider).generateToken("user@example.com", "USER");
+        verify(jwtTokenProvider, never()).generateToken(eq("Password1!"), any());
     }
 }
