@@ -33,22 +33,36 @@ import { TagChipComponent } from '../../../shared/components/tag-chip/tag-chip.c
       } @else {
         <form class="contact-form" [formGroup]="form" (ngSubmit)="onSubmit()" novalidate>
           <div class="form-section">
-            <div class="form-field">
-              <label for="name" class="form-field__label">
-                Name <span class="form-field__required" aria-hidden="true">*</span>
-              </label>
-              <input
-                id="name"
-                type="text"
-                class="form-field__input"
-                [class.form-field__input--error]="isFieldInvalid('name')"
-                formControlName="name"
-                placeholder="Full name"
-                autocomplete="name"
-              />
-              @if (isFieldInvalid('name')) {
-                <p class="form-field__error" role="alert">Name is required.</p>
-              }
+            <div class="form-row">
+              <div class="form-field">
+                <label for="firstName" class="form-field__label">
+                  First Name <span class="form-field__required" aria-hidden="true">*</span>
+                </label>
+                <input
+                  id="firstName"
+                  type="text"
+                  class="form-field__input"
+                  [class.form-field__input--error]="isFieldInvalid('firstName')"
+                  formControlName="firstName"
+                  placeholder="First name"
+                  autocomplete="given-name"
+                />
+                @if (isFieldInvalid('firstName')) {
+                  <p class="form-field__error" role="alert">First name is required.</p>
+                }
+              </div>
+
+              <div class="form-field">
+                <label for="lastName" class="form-field__label">Last Name</label>
+                <input
+                  id="lastName"
+                  type="text"
+                  class="form-field__input"
+                  formControlName="lastName"
+                  placeholder="Last name"
+                  autocomplete="family-name"
+                />
+              </div>
             </div>
 
             <div class="form-field">
@@ -188,6 +202,12 @@ import { TagChipComponent } from '../../../shared/components/tag-chip/tag-chip.c
     .contact-form-page {
       padding: var(--space-6);
       max-width: 640px;
+    }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-4);
     }
 
     .contact-form-page__header {
@@ -416,7 +436,8 @@ export class ContactFormComponent implements OnInit, OnDestroy {
   readonly companySearchControl = new FormControl('', { nonNullable: true });
 
   readonly form = new FormGroup({
-    name: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    firstName: new FormControl('', { nonNullable: true, validators: [Validators.required] }),
+    lastName: new FormControl('', { nonNullable: true }),
     email: new FormControl('', {
       nonNullable: true,
       validators: [Validators.required, Validators.email],
@@ -465,7 +486,8 @@ export class ContactFormComponent implements OnInit, OnDestroy {
 
   private patchForm(contact: Contact): void {
     this.form.patchValue({
-      name: contact.name || `${contact.firstName} ${contact.lastName}`.trim(),
+      firstName: contact.firstName,
+      lastName: contact.lastName,
       email: contact.email,
       phone: contact.phone ?? '',
       jobTitle: contact.jobTitle ?? '',
@@ -543,12 +565,9 @@ export class ContactFormComponent implements OnInit, OnDestroy {
     }
 
     const value = this.form.getRawValue();
-    const nameParts = value.name.trim().split(/\s+/);
-    const firstName = nameParts[0] ?? '';
-    const lastName = nameParts.length > 1 ? nameParts.slice(1).join(' ') : '';
     const req: CreateContactRequest = {
-      firstName,
-      lastName,
+      firstName: value.firstName.trim(),
+      lastName: value.lastName.trim(),
       email: value.email,
       phone: value.phone || undefined,
       jobTitle: value.jobTitle || undefined,

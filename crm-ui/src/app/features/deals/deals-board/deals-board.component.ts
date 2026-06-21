@@ -81,11 +81,11 @@ import { DealDrawerComponent } from '../deal-drawer/deal-drawer.component';
     }
   `,
   styles: [`
-    .board-page { display: flex; flex-direction: column; height: 100%; overflow: hidden; padding: var(--space-6); gap: var(--space-6); }
-    .board-page__header { display: flex; align-items: center; justify-content: space-between; }
+    .board-page { display: flex; flex-direction: column; height: 100%; overflow-y: hidden; padding: var(--space-6); gap: var(--space-6); }
+    .board-page__header { display: flex; align-items: center; justify-content: space-between; flex-shrink: 0; }
     .board-page__title { font-size: var(--font-size-lg); font-weight: var(--font-weight-semibold); margin: 0; }
     .board__loading { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--color-text-secondary); }
-    .board__columns { display: flex; gap: var(--space-4); overflow-x: auto; flex: 1; padding-bottom: var(--space-4); }
+    .board__columns { display: flex; gap: var(--space-4); overflow-x: auto; flex: 1; min-width: 0; padding-bottom: var(--space-4); }
     .board__column { flex: 0 0 280px; background: #F1F5F9; border-radius: var(--radius-md); display: flex; flex-direction: column; }
     .board__column-header { padding: var(--space-3) var(--space-4); border-top: 3px solid transparent; border-radius: var(--radius-md) var(--radius-md) 0 0; background: #F1F5F9; }
     .board__stage-name { display: block; font-size: var(--font-size-xs); font-weight: var(--font-weight-semibold); color: var(--color-text-secondary); letter-spacing: 0.05em; }
