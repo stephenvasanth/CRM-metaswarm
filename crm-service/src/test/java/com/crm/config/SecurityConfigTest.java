@@ -1,6 +1,10 @@
 package com.crm.config;
 
 import com.crm.domain.auth.AuthService;
+import com.crm.domain.company.CompanyService;
+import com.crm.domain.contact.ContactService;
+import com.crm.domain.deal.DealService;
+import com.crm.domain.tag.TagService;
 import com.crm.domain.user.UserService;
 import com.crm.security.JwtAuthenticationFilter;
 import com.crm.security.JwtProperties;
@@ -28,6 +32,18 @@ class SecurityConfigTest {
 
     @MockBean
     private AuthService authService;
+
+    @MockBean
+    private CompanyService companyService;
+
+    @MockBean
+    private ContactService contactService;
+
+    @MockBean
+    private DealService dealService;
+
+    @MockBean
+    private TagService tagService;
 
     @Autowired
     private MockMvc mockMvc;
