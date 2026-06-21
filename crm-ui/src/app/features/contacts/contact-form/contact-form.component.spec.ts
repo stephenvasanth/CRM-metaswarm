@@ -119,15 +119,16 @@ describe('ContactFormComponent', () => {
     });
 
     it('should start with empty form', () => {
-      expect(component.form.controls.name.value).toBe('');
+      expect(component.form.controls.firstName.value).toBe('');
+      expect(component.form.controls.lastName.value).toBe('');
       expect(component.form.controls.email.value).toBe('');
     });
 
-    it('should render name required error when touched', () => {
-      component.form.controls.name.markAsTouched();
+    it('should render first name required error when touched', () => {
+      component.form.controls.firstName.markAsTouched();
       fixture.detectChanges();
       const err = fixture.nativeElement.querySelector('.form-field__error');
-      expect(err.textContent.trim()).toBe('Name is required.');
+      expect(err.textContent.trim()).toBe('First name is required.');
     });
 
     it('should render email required error when touched empty', () => {
@@ -150,13 +151,14 @@ describe('ContactFormComponent', () => {
     it('should mark all touched and not call service when form is invalid', () => {
       component.onSubmit();
       expect(contactServiceSpy.createContact).not.toHaveBeenCalled();
-      expect(component.form.controls.name.touched).toBeTrue();
+      expect(component.form.controls.firstName.touched).toBeTrue();
     });
 
     it('should create contact on valid submit', () => {
       contactServiceSpy.createContact.and.returnValue(of(mockContact));
       const navigateSpy = spyOn(router, 'navigate');
-      component.form.controls.name.setValue('New Person');
+      component.form.controls.firstName.setValue('New');
+      component.form.controls.lastName.setValue('Person');
       component.form.controls.email.setValue('new@example.com');
       component.onSubmit();
       expect(contactServiceSpy.createContact).toHaveBeenCalledWith(
@@ -168,7 +170,8 @@ describe('ContactFormComponent', () => {
 
     it('should show error toast and reset submitting when create fails', () => {
       contactServiceSpy.createContact.and.returnValue(throwError(() => new Error()));
-      component.form.controls.name.setValue('New Person');
+      component.form.controls.firstName.setValue('New');
+      component.form.controls.lastName.setValue('Person');
       component.form.controls.email.setValue('new@example.com');
       component.onSubmit();
       expect(toastServiceSpy.add).toHaveBeenCalledWith('Failed to save contact', 'error');
@@ -177,7 +180,7 @@ describe('ContactFormComponent', () => {
 
     it('should omit empty optional fields from request', () => {
       contactServiceSpy.createContact.and.returnValue(of(mockContact));
-      component.form.controls.name.setValue('Test');
+      component.form.controls.firstName.setValue('Test');
       component.form.controls.email.setValue('test@example.com');
       component.form.controls.phone.setValue('');
       component.form.controls.jobTitle.setValue('');
@@ -210,7 +213,8 @@ describe('ContactFormComponent', () => {
     });
 
     it('should patch form with contact data', () => {
-      expect(component.form.controls.name.value).toBe('Alice Smith');
+      expect(component.form.controls.firstName.value).toBe('Alice');
+      expect(component.form.controls.lastName.value).toBe('Smith');
       expect(component.form.controls.email.value).toBe('alice@example.com');
       expect(component.form.controls.phone.value).toBe('555-1234');
       expect(component.form.controls.jobTitle.value).toBe('CEO');
@@ -437,18 +441,18 @@ describe('ContactFormComponent', () => {
     });
 
     it('should return false for a valid untouched field', () => {
-      expect(component.isFieldInvalid('name')).toBeFalse();
+      expect(component.isFieldInvalid('firstName')).toBeFalse();
     });
 
     it('should return true for an invalid touched field', () => {
-      component.form.controls.name.markAsTouched();
-      expect(component.isFieldInvalid('name')).toBeTrue();
+      component.form.controls.firstName.markAsTouched();
+      expect(component.isFieldInvalid('firstName')).toBeTrue();
     });
 
     it('should return false for a valid touched field', () => {
-      component.form.controls.name.setValue('Alice');
-      component.form.controls.name.markAsTouched();
-      expect(component.isFieldInvalid('name')).toBeFalse();
+      component.form.controls.firstName.setValue('Alice');
+      component.form.controls.firstName.markAsTouched();
+      expect(component.isFieldInvalid('firstName')).toBeFalse();
     });
   });
 
