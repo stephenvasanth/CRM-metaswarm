@@ -6,7 +6,11 @@ import org.springframework.data.jpa.repository.JpaRepository;
 import org.springframework.data.jpa.repository.Query;
 import org.springframework.data.repository.query.Param;
 
+import java.time.Instant;
+
 public interface ContactRepository extends JpaRepository<Contact, Long> {
+
+    long countByCreatedAtAfter(Instant createdAt);
 
     @Query("SELECT c FROM Contact c WHERE " +
            "(:search IS NULL OR LOWER(c.firstName) LIKE LOWER(CONCAT('%',:search,'%')) " +

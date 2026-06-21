@@ -2,6 +2,7 @@ package com.crm.config;
 
 import com.crm.domain.activity.ActivityService;
 import com.crm.domain.auth.AuthService;
+import com.crm.domain.dashboard.DashboardService;
 import com.crm.domain.company.CompanyService;
 import com.crm.domain.contact.ContactService;
 import com.crm.domain.deal.DealService;
@@ -52,6 +53,9 @@ class SecurityConfigTest {
 
     @MockBean
     private TaskService taskService;
+
+    @MockBean
+    private DashboardService dashboardService;
 
     @Autowired
     private MockMvc mockMvc;
