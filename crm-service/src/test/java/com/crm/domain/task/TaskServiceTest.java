@@ -9,54 +9,34 @@ import com.crm.domain.task.dto.TaskDto;
 import com.crm.domain.user.User;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
-import com.crm.util.PageData;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.time.Instant;
 import java.time.LocalDate;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
-import static org.mockito.ArgumentMatchers.*;
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class TaskServiceTest {
 
-    @Mock
-    private TaskRepository taskRepository;
-
-    @Mock
-    private ContactRepository contactRepository;
-
-    @Mock
-    private DealRepository dealRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private RedisTemplate<String, Object> redisTemplate;
-
-    @Mock
-    private ValueOperations<String, Object> valueOps;
+    @Mock private TaskRepository taskRepository;
+    @Mock private ContactRepository contactRepository;
+    @Mock private DealRepository dealRepository;
+    @Mock private UserRepository userRepository;
 
     @InjectMocks
     private TaskService taskService;
@@ -68,8 +48,6 @@ class TaskServiceTest {
 
     @BeforeEach
     void setUp() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOps);
-
         testUser = new User();
         testUser.setId(1L);
         testUser.setFirstName("John");
@@ -98,19 +76,7 @@ class TaskServiceTest {
     }
 
     @Test
-    void findAll_cacheHit_returnsFromRedis() {
-        PageData<TaskDto> cachedData = new PageData<>(List.of(), 0L, 0, 20);
-        when(valueOps.get("tasks:page:0:20:null")).thenReturn(cachedData);
-
-        Page<TaskDto> result = taskService.findAll(0, 20, null);
-
-        assertThat(result).isEmpty();
-        verify(taskRepository, never()).findAllByOrderByDueDateAsc(any(Pageable.class));
-    }
-
-    @Test
-    void findAll_cacheMiss_withNullCompleted_fetchesAll() {
-        when(valueOps.get("tasks:page:0:20:null")).thenReturn(null);
+    void findAll_withNullCompleted_fetchesAll() {
         when(taskRepository.findAllByOrderByDueDateAsc(any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(testTask)));
 
@@ -118,12 +84,11 @@ class TaskServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         assertThat(result.getContent().get(0).title()).isEqualTo("Follow up call");
-        verify(valueOps).set(eq("tasks:page:0:20:null"), any(), eq(24L), eq(TimeUnit.HOURS));
+        verify(taskRepository).findAllByOrderByDueDateAsc(any(Pageable.class));
     }
 
     @Test
-    void findAll_cacheMiss_withCompletedFilter_fetchesFiltered() {
-        when(valueOps.get("tasks:page:0:20:false")).thenReturn(null);
+    void findAll_withCompletedFilter_fetchesFiltered() {
         when(taskRepository.findByCompletedOrderByDueDateAsc(eq(false), any(Pageable.class)))
                 .thenReturn(new PageImpl<>(List.of(testTask)));
 
@@ -131,70 +96,41 @@ class TaskServiceTest {
 
         assertThat(result.getContent()).hasSize(1);
         verify(taskRepository).findByCompletedOrderByDueDateAsc(eq(false), any(Pageable.class));
-        verify(valueOps).set(eq("tasks:page:0:20:false"), any(), eq(24L), eq(TimeUnit.HOURS));
     }
 
     @Test
-    void findByContactId_cacheHit_returnsFromRedis() {
-        List<TaskDto> cached = List.of();
-        when(valueOps.get("tasks:contact:1")).thenReturn(cached);
-
-        List<TaskDto> result = taskService.findByContactId(1L);
-
-        assertThat(result).isEqualTo(cached);
-        verify(taskRepository, never()).findByContactIdOrderByDueDateAsc(any());
-    }
-
-    @Test
-    void findByContactId_cacheMiss_fetchesAndCaches() {
-        when(valueOps.get("tasks:contact:1")).thenReturn(null);
+    void findByContactId_returnsListFromRepository() {
         when(taskRepository.findByContactIdOrderByDueDateAsc(1L)).thenReturn(List.of(testTask));
 
         List<TaskDto> result = taskService.findByContactId(1L);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).contactName()).isEqualTo("Alice Smith");
-        verify(valueOps).set(eq("tasks:contact:1"), any(), eq(24L), eq(TimeUnit.HOURS));
     }
 
     @Test
-    void findByDealId_cacheHit_returnsFromRedis() {
-        List<TaskDto> cached = List.of();
-        when(valueOps.get("tasks:deal:1")).thenReturn(cached);
-
-        List<TaskDto> result = taskService.findByDealId(1L);
-
-        assertThat(result).isEqualTo(cached);
-        verify(taskRepository, never()).findByDealIdOrderByDueDateAsc(any());
-    }
-
-    @Test
-    void findByDealId_cacheMiss_fetchesAndCaches() {
-        when(valueOps.get("tasks:deal:1")).thenReturn(null);
+    void findByDealId_returnsListFromRepository() {
         when(taskRepository.findByDealIdOrderByDueDateAsc(1L)).thenReturn(List.of(testTask));
 
         List<TaskDto> result = taskService.findByDealId(1L);
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).dealTitle()).isEqualTo("Big Deal");
-        verify(valueOps).set(eq("tasks:deal:1"), any(), eq(24L), eq(TimeUnit.HOURS));
     }
 
     @Test
-    void create_withAllFields_savesAndInvalidatesCache() {
+    void create_withAllFields_savesTask() {
         CreateTaskRequest req = new CreateTaskRequest(
                 "Follow up call", "Call Alice", LocalDate.now().plusDays(7), 1L, 1L, 1L);
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(contactRepository.findById(1L)).thenReturn(Optional.of(testContact));
         when(dealRepository.findById(1L)).thenReturn(Optional.of(testDeal));
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
-        when(redisTemplate.keys("tasks:*")).thenReturn(Set.of("tasks:page:0:20:null"));
 
         TaskDto result = taskService.create(req);
 
         assertThat(result.title()).isEqualTo("Follow up call");
         assertThat(result.assigneeName()).isEqualTo("John Assignee");
-        verify(redisTemplate).delete(anyCollection());
     }
 
     @Test
@@ -207,7 +143,6 @@ class TaskServiceTest {
         saved.setCreatedAt(Instant.now());
         saved.setUpdatedAt(Instant.now());
         when(taskRepository.save(any(Task.class))).thenReturn(saved);
-        when(redisTemplate.keys("tasks:*")).thenReturn(Set.of("tasks:page:0:20:null"));
 
         TaskDto result = taskService.create(req);
 
@@ -215,40 +150,6 @@ class TaskServiceTest {
         assertThat(result.contactId()).isNull();
         assertThat(result.dealId()).isNull();
         verify(userRepository, never()).findById(any());
-    }
-
-    @Test
-    void create_cacheKeysNull_doesNotCallDelete() {
-        CreateTaskRequest req = new CreateTaskRequest("Task", null, null, null, null, null);
-        Task saved = new Task();
-        saved.setId(2L);
-        saved.setTitle("Task");
-        saved.setCompleted(false);
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(taskRepository.save(any(Task.class))).thenReturn(saved);
-        when(redisTemplate.keys("tasks:*")).thenReturn(null);
-
-        taskService.create(req);
-
-        verify(redisTemplate, never()).delete(anyCollection());
-    }
-
-    @Test
-    void create_cacheKeysEmpty_doesNotCallDelete() {
-        CreateTaskRequest req = new CreateTaskRequest("Task", null, null, null, null, null);
-        Task saved = new Task();
-        saved.setId(2L);
-        saved.setTitle("Task");
-        saved.setCompleted(false);
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(taskRepository.save(any(Task.class))).thenReturn(saved);
-        when(redisTemplate.keys("tasks:*")).thenReturn(Set.of());
-
-        taskService.create(req);
-
-        verify(redisTemplate, never()).delete(anyCollection());
     }
 
     @Test
@@ -262,12 +163,10 @@ class TaskServiceTest {
         updated.setCreatedAt(Instant.now());
         updated.setUpdatedAt(Instant.now());
         when(taskRepository.save(any(Task.class))).thenReturn(updated);
-        when(redisTemplate.keys("tasks:*")).thenReturn(Set.of("tasks:page:0:20:null"));
 
         TaskDto result = taskService.update(1L, req);
 
         assertThat(result.title()).isEqualTo("Updated task");
-        verify(redisTemplate).delete(anyCollection());
     }
 
     @Test
@@ -284,12 +183,10 @@ class TaskServiceTest {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(testTask));
         testTask.setCompleted(true);
         when(taskRepository.save(any(Task.class))).thenReturn(testTask);
-        when(redisTemplate.keys("tasks:*")).thenReturn(Set.of("tasks:page:0:20:null"));
 
         TaskDto result = taskService.complete(1L, true);
 
         assertThat(result.completed()).isTrue();
-        verify(redisTemplate).delete(anyCollection());
     }
 
     @Test
@@ -301,14 +198,12 @@ class TaskServiceTest {
     }
 
     @Test
-    void delete_existingTask_deletesAndInvalidatesCache() {
+    void delete_existingTask_deletes() {
         when(taskRepository.findById(1L)).thenReturn(Optional.of(testTask));
-        when(redisTemplate.keys("tasks:*")).thenReturn(Set.of("tasks:page:0:20:null"));
 
         taskService.delete(1L);
 
         verify(taskRepository).delete(testTask);
-        verify(redisTemplate).delete(anyCollection());
     }
 
     @Test

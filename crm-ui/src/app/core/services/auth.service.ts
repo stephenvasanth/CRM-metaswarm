@@ -1,5 +1,6 @@
 import { Injectable, inject } from '@angular/core';
 import { HttpClient } from '@angular/common/http';
+import { Router } from '@angular/router';
 import { BehaviorSubject, Observable, tap } from 'rxjs';
 import { map } from 'rxjs/operators';
 
@@ -28,6 +29,7 @@ const USER_KEY = 'crm_user';
 @Injectable({ providedIn: 'root' })
 export class AuthService {
   private readonly http = inject(HttpClient);
+  private readonly router = inject(Router);
 
   currentUser$ = new BehaviorSubject<User | null>(this.loadStoredUser());
   isAdmin$ = this.currentUser$.pipe(map((u) => u?.role === 'ADMIN'));
@@ -62,6 +64,7 @@ export class AuthService {
     localStorage.removeItem(TOKEN_KEY);
     localStorage.removeItem(USER_KEY);
     this.currentUser$.next(null);
+    this.router.navigate(['/login']);
   }
 
   isLoggedIn(): boolean {

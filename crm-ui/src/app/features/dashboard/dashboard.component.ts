@@ -290,15 +290,16 @@ export class DashboardComponent implements OnInit {
   }
 
   isOverdue(dueDate: string): boolean {
-    const d = new Date(dueDate);
+    const [y, m, d] = dueDate.split('-').map(Number);
+    const due = new Date(y, m - 1, d);
     const today = new Date();
     today.setHours(0, 0, 0, 0);
-    return d < today;
+    return due < today;
   }
 
   isToday(dueDate: string): boolean {
-    const d = new Date(dueDate);
+    const [y, m, d] = dueDate.split('-').map(Number);
     const today = new Date();
-    return d.toDateString() === today.toDateString();
+    return y === today.getFullYear() && m === today.getMonth() + 1 && d === today.getDate();
   }
 }

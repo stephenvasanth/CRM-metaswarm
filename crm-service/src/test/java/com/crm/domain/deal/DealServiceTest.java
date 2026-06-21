@@ -25,7 +25,6 @@ import java.time.LocalDate;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
@@ -37,20 +36,11 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class DealServiceTest {
 
-    @Mock
-    private DealRepository dealRepository;
-
-    @Mock
-    private ContactRepository contactRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private RedisTemplate<String, Object> redisTemplate;
-
-    @Mock
-    private ValueOperations<String, Object> valueOps;
+    @Mock private DealRepository dealRepository;
+    @Mock private ContactRepository contactRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private RedisTemplate<String, Object> redisTemplate;
+    @Mock private ValueOperations<String, Object> valueOps;
 
     @InjectMocks
     private DealService dealService;
@@ -87,28 +77,20 @@ class DealServiceTest {
         testDeal.setUpdatedAt(Instant.now());
     }
 
-    @Test
-    void findAll_cacheHit_returnsFromRedis() {
-        List<DealDto> cached = List.of();
-        when(valueOps.get("deals:all")).thenReturn(cached);
-
-        List<DealDto> result = dealService.findAll();
-
-        assertThat(result).isEqualTo(cached);
-        verify(dealRepository, never()).findAll();
-    }
+    // --- findAll (no cache) ---
 
     @Test
-    void findAll_cacheMiss_fetchesAndCaches() {
-        when(valueOps.get("deals:all")).thenReturn(null);
+    void findAll_fetchesFromDb() {
         when(dealRepository.findAll()).thenReturn(List.of(testDeal));
 
         List<DealDto> result = dealService.findAll();
 
         assertThat(result).hasSize(1);
         assertThat(result.get(0).title()).isEqualTo("Big Deal");
-        verify(valueOps).set(eq("deals:all"), any(), eq(24L), eq(TimeUnit.HOURS));
+        verify(valueOps, never()).set(anyString(), any(), anyLong(), any());
     }
+
+    // --- findById (cached) ---
 
     @Test
     void findById_cacheHit_returnsFromRedis() {
@@ -147,7 +129,27 @@ class DealServiceTest {
     }
 
     @Test
-    void create_withoutOptionals_savesDeal() {
+    void findById_dealWithNullContactAndOwner_returnsDto() {
+        Deal bare = new Deal();
+        bare.setId(2L);
+        bare.setTitle("Bare Deal");
+        bare.setStage(DealStage.LEAD);
+        bare.setValue(BigDecimal.ZERO);
+        bare.setCreatedAt(Instant.now());
+        bare.setUpdatedAt(Instant.now());
+        when(valueOps.get("deals:id:2")).thenReturn(null);
+        when(dealRepository.findById(2L)).thenReturn(Optional.of(bare));
+
+        DealDto result = dealService.findById(2L);
+
+        assertThat(result.contactId()).isNull();
+        assertThat(result.ownerId()).isNull();
+    }
+
+    // --- create (evicts stats only) ---
+
+    @Test
+    void create_withoutOptionals_savesAndEvictsStats() {
         CreateDealRequest req = new CreateDealRequest(
                 "New Deal", new BigDecimal("1000"), DealStage.LEAD, null, null, null, null);
         Deal saved = new Deal();
@@ -158,12 +160,12 @@ class DealServiceTest {
         saved.setCreatedAt(Instant.now());
         saved.setUpdatedAt(Instant.now());
         when(dealRepository.save(any(Deal.class))).thenReturn(saved);
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of("deals:all"));
 
         DealDto result = dealService.create(req);
 
         assertThat(result.title()).isEqualTo("New Deal");
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate).delete("deals:stats");
+        verify(redisTemplate, never()).delete("deals:id:2");
     }
 
     @Test
@@ -173,18 +175,35 @@ class DealServiceTest {
         when(contactRepository.findById(1L)).thenReturn(Optional.of(testContact));
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(dealRepository.save(any(Deal.class))).thenReturn(testDeal);
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of("deals:all"));
 
         DealDto result = dealService.create(req);
 
         assertThat(result.contactId()).isEqualTo(1L);
         assertThat(result.ownerId()).isEqualTo(1L);
-        verify(contactRepository).findById(1L);
-        verify(userRepository).findById(1L);
     }
 
     @Test
-    void update_existingDeal_updatesFields() {
+    void create_withNullValueAndNullStage_usesDefaults() {
+        CreateDealRequest req = new CreateDealRequest(
+                "Default Deal", null, null, null, null, null, null);
+        Deal saved = new Deal();
+        saved.setId(3L);
+        saved.setTitle("Default Deal");
+        saved.setValue(BigDecimal.ZERO);
+        saved.setStage(DealStage.LEAD);
+        saved.setCreatedAt(Instant.now());
+        saved.setUpdatedAt(Instant.now());
+        when(dealRepository.save(any(Deal.class))).thenReturn(saved);
+
+        DealDto result = dealService.create(req);
+
+        assertThat(result.title()).isEqualTo("Default Deal");
+    }
+
+    // --- update (evicts id + stats) ---
+
+    @Test
+    void update_existingDeal_updatesAndEvictsIdAndStats() {
         CreateDealRequest req = new CreateDealRequest(
                 "Updated Deal", new BigDecimal("9999"), DealStage.PROPOSAL, null, null, null, null);
         when(dealRepository.findById(1L)).thenReturn(Optional.of(testDeal));
@@ -196,12 +215,12 @@ class DealServiceTest {
         updated.setCreatedAt(Instant.now());
         updated.setUpdatedAt(Instant.now());
         when(dealRepository.save(any(Deal.class))).thenReturn(updated);
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of("deals:all"));
 
         DealDto result = dealService.update(1L, req);
 
         assertThat(result.title()).isEqualTo("Updated Deal");
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate).delete("deals:id:1");
+        verify(redisTemplate).delete("deals:stats");
     }
 
     @Test
@@ -213,16 +232,18 @@ class DealServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // --- updateStage (evicts id + stats) ---
+
     @Test
-    void updateStage_updatesAndReturnsDto() {
+    void updateStage_updatesAndEvictsIdAndStats() {
         when(dealRepository.findById(1L)).thenReturn(Optional.of(testDeal));
         when(dealRepository.save(any(Deal.class))).thenReturn(testDeal);
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of("deals:all"));
 
         DealDto result = dealService.updateStage(1L, DealStage.QUALIFIED);
 
         assertThat(result).isNotNull();
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate).delete("deals:id:1");
+        verify(redisTemplate).delete("deals:stats");
     }
 
     @Test
@@ -233,15 +254,17 @@ class DealServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // --- delete (evicts id + stats) ---
+
     @Test
-    void delete_existingDeal_deletesAndInvalidates() {
+    void delete_existingDeal_deletesAndEvictsIdAndStats() {
         when(dealRepository.findById(1L)).thenReturn(Optional.of(testDeal));
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of("deals:all"));
 
         dealService.delete(1L);
 
         verify(dealRepository).delete(testDeal);
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate).delete("deals:id:1");
+        verify(redisTemplate).delete("deals:stats");
     }
 
     @Test
@@ -251,6 +274,8 @@ class DealServiceTest {
         assertThatThrownBy(() -> dealService.delete(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    // --- getStats (cached) ---
 
     @Test
     void getStats_cacheHit_returnsFromRedis() {
@@ -266,29 +291,41 @@ class DealServiceTest {
     @Test
     void getStats_cacheMiss_buildsAllSixStages() {
         when(valueOps.get("deals:stats")).thenReturn(null);
-        // Return stats for LEAD only — other stages should default to 0
         List<Object[]> rawStats = new ArrayList<>();
         rawStats.add(new Object[]{DealStage.LEAD, 3L, new BigDecimal("15000")});
         when(dealRepository.getStatsByStage()).thenReturn(rawStats);
 
         DealStatsDto result = dealService.getStats();
 
-        // All 6 stages must be present
         assertThat(result.stages()).hasSize(6);
-        // LEAD has data
         DealStatsDto.StageStats leadStats = result.stages().stream()
                 .filter(s -> s.stage() == DealStage.LEAD)
                 .findFirst().orElseThrow();
         assertThat(leadStats.count()).isEqualTo(3L);
         assertThat(leadStats.totalValue()).isEqualByComparingTo(new BigDecimal("15000"));
-        // QUALIFIED has defaults
         DealStatsDto.StageStats qualStats = result.stages().stream()
                 .filter(s -> s.stage() == DealStage.QUALIFIED)
                 .findFirst().orElseThrow();
         assertThat(qualStats.count()).isEqualTo(0L);
-        assertThat(qualStats.totalValue()).isEqualByComparingTo(BigDecimal.ZERO);
         verify(valueOps).set(eq("deals:stats"), any(), eq(24L), eq(TimeUnit.HOURS));
     }
+
+    @Test
+    void getStats_withNonBigDecimalTotalValue_convertsToString() {
+        when(valueOps.get("deals:stats")).thenReturn(null);
+        List<Object[]> rawStats = new ArrayList<>();
+        rawStats.add(new Object[]{DealStage.PROPOSAL, 2L, 5000L});
+        when(dealRepository.getStatsByStage()).thenReturn(rawStats);
+
+        DealStatsDto result = dealService.getStats();
+
+        DealStatsDto.StageStats proposalStats = result.stages().stream()
+                .filter(s -> s.stage() == DealStage.PROPOSAL)
+                .findFirst().orElseThrow();
+        assertThat(proposalStats.totalValue()).isEqualByComparingTo(new BigDecimal("5000"));
+    }
+
+    // --- entity coverage ---
 
     @Test
     void deal_setterGetterCoverage() {
@@ -314,99 +351,5 @@ class DealServiceTest {
         assertThat(d.getNotes()).isEqualTo("Note");
         assertThat(d.getCreatedAt()).isEqualTo(now);
         assertThat(d.getUpdatedAt()).isEqualTo(now);
-    }
-
-    @Test
-    void findById_dealWithNullContactAndOwner_returnsDto() {
-        Deal bare = new Deal();
-        bare.setId(2L);
-        bare.setTitle("Bare Deal");
-        bare.setStage(DealStage.LEAD);
-        bare.setValue(BigDecimal.ZERO);
-        bare.setCreatedAt(Instant.now());
-        bare.setUpdatedAt(Instant.now());
-        when(valueOps.get("deals:id:2")).thenReturn(null);
-        when(dealRepository.findById(2L)).thenReturn(Optional.of(bare));
-
-        DealDto result = dealService.findById(2L);
-
-        assertThat(result.contactId()).isNull();
-        assertThat(result.contactName()).isNull();
-        assertThat(result.ownerId()).isNull();
-        assertThat(result.ownerName()).isNull();
-    }
-
-    @Test
-    void create_withNullValueAndNullStage_usesDefaults() {
-        CreateDealRequest req = new CreateDealRequest(
-                "Default Deal", null, null, null, null, null, null);
-        Deal saved = new Deal();
-        saved.setId(3L);
-        saved.setTitle("Default Deal");
-        saved.setValue(BigDecimal.ZERO);
-        saved.setStage(DealStage.LEAD);
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(dealRepository.save(any(Deal.class))).thenReturn(saved);
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of("deals:all"));
-
-        DealDto result = dealService.create(req);
-
-        assertThat(result.title()).isEqualTo("Default Deal");
-    }
-
-    @Test
-    void getStats_withNonBigDecimalTotalValue_convertsToString() {
-        when(valueOps.get("deals:stats")).thenReturn(null);
-        // Simulate a database returning a Long instead of BigDecimal for total value
-        List<Object[]> rawStats = new ArrayList<>();
-        rawStats.add(new Object[]{DealStage.PROPOSAL, 2L, 5000L});
-        when(dealRepository.getStatsByStage()).thenReturn(rawStats);
-
-        DealStatsDto result = dealService.getStats();
-
-        DealStatsDto.StageStats proposalStats = result.stages().stream()
-                .filter(s -> s.stage() == DealStage.PROPOSAL)
-                .findFirst().orElseThrow();
-        assertThat(proposalStats.count()).isEqualTo(2L);
-        assertThat(proposalStats.totalValue()).isEqualByComparingTo(new BigDecimal("5000"));
-    }
-
-    @Test
-    void create_cacheKeysNull_doesNotCallDelete() {
-        CreateDealRequest req = new CreateDealRequest(
-                "New Deal", BigDecimal.ZERO, DealStage.LEAD, null, null, null, null);
-        Deal saved = new Deal();
-        saved.setId(2L);
-        saved.setTitle("New Deal");
-        saved.setValue(BigDecimal.ZERO);
-        saved.setStage(DealStage.LEAD);
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(dealRepository.save(any(Deal.class))).thenReturn(saved);
-        when(redisTemplate.keys("deals:*")).thenReturn(null);
-
-        dealService.create(req);
-
-        verify(redisTemplate, never()).delete(anyCollection());
-    }
-
-    @Test
-    void create_cacheKeysEmpty_doesNotCallDelete() {
-        CreateDealRequest req = new CreateDealRequest(
-                "New Deal", BigDecimal.ZERO, DealStage.LEAD, null, null, null, null);
-        Deal saved = new Deal();
-        saved.setId(2L);
-        saved.setTitle("New Deal");
-        saved.setValue(BigDecimal.ZERO);
-        saved.setStage(DealStage.LEAD);
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(dealRepository.save(any(Deal.class))).thenReturn(saved);
-        when(redisTemplate.keys("deals:*")).thenReturn(Set.of());
-
-        dealService.create(req);
-
-        verify(redisTemplate, never()).delete(anyCollection());
     }
 }

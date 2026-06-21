@@ -185,7 +185,8 @@ describe('DashboardComponent', () => {
 
   describe('isToday', () => {
     it('should return true for today', () => {
-      const today = new Date().toISOString().split('T')[0];
+      const t = new Date();
+      const today = `${t.getFullYear()}-${String(t.getMonth() + 1).padStart(2, '0')}-${String(t.getDate()).padStart(2, '0')}`;
       expect(component.isToday(today)).toBeTrue();
     });
 

@@ -7,7 +7,6 @@ import com.crm.domain.tag.Tag;
 import com.crm.domain.tag.TagRepository;
 import com.crm.domain.user.UserRepository;
 import com.crm.exception.ResourceNotFoundException;
-import com.crm.util.PageData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.redis.core.RedisTemplate;
@@ -42,13 +41,7 @@ public class ContactService {
     }
 
     @Transactional(readOnly = true)
-    @SuppressWarnings("unchecked")
     public Page<ContactDto> findAll(int page, int size, String search, Long tagId) {
-        String cacheKey = "contacts:page:" + page + ":" + size + ":" + search + ":" + tagId;
-        Object cached = redisTemplate.opsForValue().get(cacheKey);
-        if (cached != null) {
-            return ((PageData<ContactDto>) cached).toPage();
-        }
         PageRequest pageable = PageRequest.of(page, size);
         Page<Contact> contactPage;
         if (tagId != null) {
@@ -58,9 +51,7 @@ public class ContactService {
         } else {
             contactPage = contactRepository.findAll(pageable);
         }
-        Page<ContactDto> result = contactPage.map(ContactDto::from);
-        redisTemplate.opsForValue().set(cacheKey, PageData.of(result), 24, TimeUnit.HOURS);
-        return result;
+        return contactPage.map(ContactDto::from);
     }
 
     @Transactional(readOnly = true)
@@ -81,9 +72,7 @@ public class ContactService {
     public ContactDto create(CreateContactRequest request) {
         Contact contact = new Contact();
         applyFields(contact, request);
-        Contact saved = contactRepository.save(contact);
-        invalidateContactCache();
-        return ContactDto.from(saved);
+        return ContactDto.from(contactRepository.save(contact));
     }
 
     public ContactDto update(Long id, CreateContactRequest request) {
@@ -91,7 +80,7 @@ public class ContactService {
                 .orElseThrow(() -> new ResourceNotFoundException("Contact", id));
         applyFields(contact, request);
         Contact saved = contactRepository.save(contact);
-        invalidateContactCache();
+        redisTemplate.delete("contacts:id:" + id);
         return ContactDto.from(saved);
     }
 
@@ -99,7 +88,7 @@ public class ContactService {
         Contact contact = contactRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Contact", id));
         contactRepository.delete(contact);
-        invalidateContactCache();
+        redisTemplate.delete("contacts:id:" + id);
     }
 
     private void applyFields(Contact contact, CreateContactRequest request) {
@@ -129,10 +118,4 @@ public class ContactService {
         }
     }
 
-    private void invalidateContactCache() {
-        Set<String> keys = redisTemplate.keys("contacts:*");
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
-    }
 }

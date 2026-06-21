@@ -10,9 +10,9 @@ import { TaskDrawerComponent } from '../task-drawer/task-drawer.component';
   standalone: true,
   imports: [CommonModule, DatePipe, TaskDrawerComponent],
   template: `
-    <div class="tasks-list">
+    <div class="tasks-list" [class.tasks-list--page]="!contactId && !dealId">
       <div class="tasks-list__header">
-        <h3 class="tasks-list__title">Tasks</h3>
+        <h1 class="tasks-list__title" [class.tasks-list__title--page]="!contactId && !dealId">Tasks</h1>
         <button type="button" class="btn btn--primary btn--sm" (click)="openDrawer()">New Task</button>
       </div>
 
@@ -63,8 +63,10 @@ import { TaskDrawerComponent } from '../task-drawer/task-drawer.component';
     </div>
   `,
   styles: [`
+    .tasks-list--page { padding: var(--space-6); max-width: 100%; }
     .tasks-list__header { display: flex; align-items: center; justify-content: space-between; margin-bottom: var(--space-4); }
     .tasks-list__title { font-size: var(--font-size-base); font-weight: var(--font-weight-medium); margin: 0; }
+    .tasks-list__title--page { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
     .tasks-list__loading, .tasks-list__empty { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
     .tasks-list__items { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: var(--space-2); }
     .task-item { display: flex; align-items: center; gap: var(--space-3); padding: var(--space-3); border: 1px solid var(--color-border); border-radius: var(--radius-md); }

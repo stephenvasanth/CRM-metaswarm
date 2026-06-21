@@ -14,7 +14,6 @@ import java.math.BigDecimal;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Map;
-import java.util.Set;
 import java.util.concurrent.TimeUnit;
 import java.util.stream.Collectors;
 @Service
@@ -37,17 +36,10 @@ public class DealService {
     }
 
     @Transactional(readOnly = true)
-    @SuppressWarnings("unchecked")
     public List<DealDto> findAll() {
-        Object cached = redisTemplate.opsForValue().get("deals:all");
-        if (cached != null) {
-            return (List<DealDto>) cached;
-        }
-        List<DealDto> result = new ArrayList<>(dealRepository.findAll().stream()
+        return new ArrayList<>(dealRepository.findAll().stream()
                 .map(DealDto::from)
                 .toList());
-        redisTemplate.opsForValue().set("deals:all", result, 24, TimeUnit.HOURS);
-        return result;
     }
 
     @Transactional(readOnly = true)
@@ -69,7 +61,7 @@ public class DealService {
         Deal deal = new Deal();
         applyFields(deal, request);
         Deal saved = dealRepository.save(deal);
-        invalidateDealCache();
+        redisTemplate.delete("deals:stats");
         return DealDto.from(saved);
     }
 
@@ -78,7 +70,8 @@ public class DealService {
                 .orElseThrow(() -> new ResourceNotFoundException("Deal", id));
         applyFields(deal, request);
         Deal saved = dealRepository.save(deal);
-        invalidateDealCache();
+        redisTemplate.delete("deals:id:" + id);
+        redisTemplate.delete("deals:stats");
         return DealDto.from(saved);
     }
 
@@ -87,7 +80,8 @@ public class DealService {
                 .orElseThrow(() -> new ResourceNotFoundException("Deal", id));
         deal.setStage(stage);
         Deal saved = dealRepository.save(deal);
-        invalidateDealCache();
+        redisTemplate.delete("deals:id:" + id);
+        redisTemplate.delete("deals:stats");
         return DealDto.from(saved);
     }
 
@@ -95,7 +89,8 @@ public class DealService {
         Deal deal = dealRepository.findById(id)
                 .orElseThrow(() -> new ResourceNotFoundException("Deal", id));
         dealRepository.delete(deal);
-        invalidateDealCache();
+        redisTemplate.delete("deals:id:" + id);
+        redisTemplate.delete("deals:stats");
     }
 
     @Transactional(readOnly = true)
@@ -150,10 +145,4 @@ public class DealService {
         }
     }
 
-    private void invalidateDealCache() {
-        Set<String> keys = redisTemplate.keys("deals:*");
-        if (keys != null && !keys.isEmpty()) {
-            redisTemplate.delete(keys);
-        }
-    }
 }

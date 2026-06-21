@@ -3,48 +3,28 @@ package com.crm.domain.tag;
 import com.crm.domain.tag.dto.CreateTagRequest;
 import com.crm.domain.tag.dto.TagDto;
 import com.crm.exception.ResourceNotFoundException;
-import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
 import org.mockito.InjectMocks;
 import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
-import org.mockito.junit.jupiter.MockitoSettings;
-import org.mockito.quality.Strictness;
-import org.springframework.data.redis.core.RedisTemplate;
-import org.springframework.data.redis.core.ValueOperations;
 
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Optional;
-import java.util.concurrent.TimeUnit;
 
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 import static org.mockito.ArgumentMatchers.any;
-import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
-@MockitoSettings(strictness = Strictness.LENIENT)
 class TagServiceTest {
 
-    @Mock
-    private TagRepository tagRepository;
-
-    @Mock
-    private RedisTemplate<String, Object> redisTemplate;
-
-    @Mock
-    private ValueOperations<String, Object> valueOps;
+    @Mock private TagRepository tagRepository;
 
     @InjectMocks
     private TagService tagService;
-
-    @BeforeEach
-    void setUp() {
-        when(redisTemplate.opsForValue()).thenReturn(valueOps);
-    }
 
     private Tag buildTag(Long id, String name, String colour) {
         Tag tag = new Tag();
@@ -55,19 +35,7 @@ class TagServiceTest {
     }
 
     @Test
-    void findAll_cacheHit_returnsFromRedis() {
-        List<TagDto> cached = List.of(new TagDto(1L, "VIP", "#6366F1", 3L));
-        when(valueOps.get("tags:all")).thenReturn(cached);
-
-        List<TagDto> result = tagService.findAll();
-
-        assertThat(result).isEqualTo(cached);
-        verify(tagRepository, never()).findAll();
-    }
-
-    @Test
-    void findAll_cacheMiss_fetchesFromDbAndCachesWithCounts() {
-        when(valueOps.get("tags:all")).thenReturn(null);
+    void findAll_fetchesFromDbWithContactCounts() {
         Tag tag = buildTag(1L, "VIP", "#6366F1");
         when(tagRepository.findAll()).thenReturn(List.of(tag));
         List<Object[]> counts = new ArrayList<>();
@@ -79,12 +47,10 @@ class TagServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.get(0).name()).isEqualTo("VIP");
         assertThat(result.get(0).contactCount()).isEqualTo(5L);
-        verify(valueOps).set(eq("tags:all"), any(), eq(24L), eq(TimeUnit.HOURS));
     }
 
     @Test
-    void findAll_cacheMiss_withNoCountData_defaultsToZero() {
-        when(valueOps.get("tags:all")).thenReturn(null);
+    void findAll_withNoCountData_defaultsToZero() {
         Tag tag = buildTag(1L, "VIP", "#6366F1");
         when(tagRepository.findAll()).thenReturn(List.of(tag));
         when(tagRepository.countContactsPerTag()).thenReturn(List.of());
@@ -96,7 +62,7 @@ class TagServiceTest {
     }
 
     @Test
-    void createTag_success_savesAndInvalidatesCache() {
+    void createTag_success_saves() {
         CreateTagRequest req = new CreateTagRequest("Customer", "#FF5733");
         when(tagRepository.existsByName("Customer")).thenReturn(false);
         Tag saved = buildTag(1L, "Customer", "#FF5733");
@@ -106,7 +72,6 @@ class TagServiceTest {
 
         assertThat(result.name()).isEqualTo("Customer");
         assertThat(result.colour()).isEqualTo("#FF5733");
-        verify(redisTemplate).delete("tags:all");
     }
 
     @Test
@@ -120,7 +85,7 @@ class TagServiceTest {
     }
 
     @Test
-    void deleteTag_success_deletesAndInvalidatesCache() {
+    void deleteTag_success_deletesTag() {
         Tag tag = buildTag(1L, "VIP", "#6366F1");
         when(tagRepository.findById(1L)).thenReturn(Optional.of(tag));
 
@@ -128,7 +93,6 @@ class TagServiceTest {
 
         verify(tagRepository).deleteContactTagsByTagId(1L);
         verify(tagRepository).delete(tag);
-        verify(redisTemplate).delete("tags:all");
     }
 
     @Test

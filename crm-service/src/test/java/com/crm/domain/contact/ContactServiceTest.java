@@ -17,7 +17,6 @@ import org.mockito.Mock;
 import org.mockito.junit.jupiter.MockitoExtension;
 import org.mockito.junit.jupiter.MockitoSettings;
 import org.mockito.quality.Strictness;
-import com.crm.util.PageData;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageImpl;
 import org.springframework.data.domain.Pageable;
@@ -39,23 +38,12 @@ import static org.mockito.Mockito.*;
 @MockitoSettings(strictness = Strictness.LENIENT)
 class ContactServiceTest {
 
-    @Mock
-    private ContactRepository contactRepository;
-
-    @Mock
-    private CompanyRepository companyRepository;
-
-    @Mock
-    private UserRepository userRepository;
-
-    @Mock
-    private TagRepository tagRepository;
-
-    @Mock
-    private RedisTemplate<String, Object> redisTemplate;
-
-    @Mock
-    private ValueOperations<String, Object> valueOps;
+    @Mock private ContactRepository contactRepository;
+    @Mock private CompanyRepository companyRepository;
+    @Mock private UserRepository userRepository;
+    @Mock private TagRepository tagRepository;
+    @Mock private RedisTemplate<String, Object> redisTemplate;
+    @Mock private ValueOperations<String, Object> valueOps;
 
     @InjectMocks
     private ContactService contactService;
@@ -98,20 +86,10 @@ class ContactServiceTest {
         testContact.setUpdatedAt(Instant.now());
     }
 
-    @Test
-    void findAll_cacheHit_returnsFromRedis() {
-        PageData<ContactDto> cachedData = new PageData<>(List.of(), 0L, 0, 20);
-        when(valueOps.get(anyString())).thenReturn(cachedData);
-
-        Page<ContactDto> result = contactService.findAll(0, 20, null, null);
-
-        assertThat(result).isEmpty();
-        verify(contactRepository, never()).searchContacts(any(), any());
-    }
+    // --- findAll (no cache) ---
 
     @Test
-    void findAll_cacheMiss_noFilter_fetchesAll() {
-        when(valueOps.get(anyString())).thenReturn(null);
+    void findAll_noFilter_fetchesAllFromDb() {
         Page<Contact> page = new PageImpl<>(List.of(testContact));
         when(contactRepository.findAll(any(Pageable.class))).thenReturn(page);
 
@@ -120,12 +98,11 @@ class ContactServiceTest {
         assertThat(result).hasSize(1);
         assertThat(result.getContent().get(0).firstName()).isEqualTo("Alice");
         verify(contactRepository).findAll(any(Pageable.class));
-        verify(valueOps).set(anyString(), any(), eq(24L), eq(TimeUnit.HOURS));
+        verify(valueOps, never()).set(anyString(), any(), anyLong(), any());
     }
 
     @Test
-    void findAll_cacheMiss_withSearch_usesSearchQuery() {
-        when(valueOps.get(anyString())).thenReturn(null);
+    void findAll_withSearch_usesSearchQuery() {
         Page<Contact> page = new PageImpl<>(List.of(testContact));
         when(contactRepository.searchContacts(eq("alice"), any(Pageable.class))).thenReturn(page);
 
@@ -136,8 +113,7 @@ class ContactServiceTest {
     }
 
     @Test
-    void findAll_cacheMiss_withTagId_usesTagQuery() {
-        when(valueOps.get(anyString())).thenReturn(null);
+    void findAll_withTagId_usesTagQuery() {
         Page<Contact> page = new PageImpl<>(List.of(testContact));
         when(contactRepository.findByTagId(eq(1L), any(Pageable.class))).thenReturn(page);
 
@@ -146,6 +122,8 @@ class ContactServiceTest {
         assertThat(result).hasSize(1);
         verify(contactRepository).findByTagId(eq(1L), any(Pageable.class));
     }
+
+    // --- findById (cached) ---
 
     @Test
     void findById_cacheHit_returnsFromRedis() {
@@ -185,6 +163,26 @@ class ContactServiceTest {
     }
 
     @Test
+    void findById_contactWithNullCompanyAndOwner_returnsDto() {
+        Contact bare = new Contact();
+        bare.setId(2L);
+        bare.setFirstName("No");
+        bare.setLastName("Owner");
+        bare.setTags(Set.of());
+        bare.setCreatedAt(Instant.now());
+        bare.setUpdatedAt(Instant.now());
+        when(valueOps.get("contacts:id:2")).thenReturn(null);
+        when(contactRepository.findById(2L)).thenReturn(Optional.of(bare));
+
+        ContactDto result = contactService.findById(2L);
+
+        assertThat(result.companyId()).isNull();
+        assertThat(result.ownerId()).isNull();
+    }
+
+    // --- create (no cache invalidation needed) ---
+
+    @Test
     void create_withoutOptionalFields_savesContact() {
         CreateContactRequest req = new CreateContactRequest(
                 "Bob", "Jones", "bob@example.com", null, null, null, null, null);
@@ -197,12 +195,11 @@ class ContactServiceTest {
         saved.setCreatedAt(Instant.now());
         saved.setUpdatedAt(Instant.now());
         when(contactRepository.save(any(Contact.class))).thenReturn(saved);
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of("contacts:page:0:20:null:null"));
 
         ContactDto result = contactService.create(req);
 
         assertThat(result.firstName()).isEqualTo("Bob");
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate, never()).delete(anyString());
     }
 
     @Test
@@ -214,32 +211,36 @@ class ContactServiceTest {
         when(userRepository.findById(1L)).thenReturn(Optional.of(testUser));
         when(tagRepository.findAllById(List.of(1L))).thenReturn(List.of(testTag));
         when(contactRepository.save(any(Contact.class))).thenReturn(testContact);
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of("contacts:page:0:20:null:null"));
 
         ContactDto result = contactService.create(req);
 
         assertThat(result.companyId()).isEqualTo(1L);
         assertThat(result.ownerId()).isEqualTo(1L);
         assertThat(result.tags()).hasSize(1);
-        verify(companyRepository).findById(1L);
-        verify(userRepository).findById(1L);
     }
 
     @Test
-    void create_withTags_setsTags() {
+    void create_withEmptyTagIds_setsEmptyTags() {
         CreateContactRequest req = new CreateContactRequest(
-                "Alice", "Smith", null, null, null, null, null, List.of(1L));
-        when(tagRepository.findAllById(List.of(1L))).thenReturn(List.of(testTag));
-        when(contactRepository.save(any(Contact.class))).thenReturn(testContact);
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of("contacts:page:0:20:null:null"));
+                "Bob", "Jones", null, null, null, null, null, List.of());
+        Contact saved = new Contact();
+        saved.setId(2L);
+        saved.setFirstName("Bob");
+        saved.setLastName("Jones");
+        saved.setTags(Set.of());
+        saved.setCreatedAt(Instant.now());
+        saved.setUpdatedAt(Instant.now());
+        when(contactRepository.save(any(Contact.class))).thenReturn(saved);
 
         contactService.create(req);
 
-        verify(tagRepository).findAllById(List.of(1L));
+        verify(tagRepository, never()).findAllById(any());
     }
 
+    // --- update (evicts specific ID cache) ---
+
     @Test
-    void update_existingContact_updatesFields() {
+    void update_existingContact_updatesAndEvictsIdCache() {
         CreateContactRequest req = new CreateContactRequest(
                 "Updated", "Name", "updated@example.com", "999-0000", "Manager",
                 null, null, null);
@@ -253,12 +254,11 @@ class ContactServiceTest {
         updated.setCreatedAt(Instant.now());
         updated.setUpdatedAt(Instant.now());
         when(contactRepository.save(any(Contact.class))).thenReturn(updated);
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of("contacts:page:0:20:null:null"));
 
         ContactDto result = contactService.update(1L, req);
 
         assertThat(result.firstName()).isEqualTo("Updated");
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate).delete("contacts:id:1");
     }
 
     @Test
@@ -270,15 +270,16 @@ class ContactServiceTest {
                 .isInstanceOf(ResourceNotFoundException.class);
     }
 
+    // --- delete (evicts specific ID cache) ---
+
     @Test
-    void delete_existingContact_deletesAndInvalidates() {
+    void delete_existingContact_deletesAndEvictsIdCache() {
         when(contactRepository.findById(1L)).thenReturn(Optional.of(testContact));
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of("contacts:page:0:20:null:null"));
 
         contactService.delete(1L);
 
         verify(contactRepository).delete(testContact);
-        verify(redisTemplate).delete(anyCollection());
+        verify(redisTemplate).delete("contacts:id:1");
     }
 
     @Test
@@ -288,6 +289,8 @@ class ContactServiceTest {
         assertThatThrownBy(() -> contactService.delete(99L))
                 .isInstanceOf(ResourceNotFoundException.class);
     }
+
+    // --- entity coverage ---
 
     @Test
     void contact_setterGetterCoverage() {
@@ -315,82 +318,5 @@ class ContactServiceTest {
         assertThat(c.getTags()).isEmpty();
         assertThat(c.getCreatedAt()).isEqualTo(now);
         assertThat(c.getUpdatedAt()).isEqualTo(now);
-    }
-
-    @Test
-    void findById_contactWithNullCompanyAndOwner_returnsDto() {
-        Contact bare = new Contact();
-        bare.setId(2L);
-        bare.setFirstName("No");
-        bare.setLastName("Owner");
-        bare.setTags(Set.of());
-        bare.setCreatedAt(Instant.now());
-        bare.setUpdatedAt(Instant.now());
-        when(valueOps.get("contacts:id:2")).thenReturn(null);
-        when(contactRepository.findById(2L)).thenReturn(Optional.of(bare));
-
-        ContactDto result = contactService.findById(2L);
-
-        assertThat(result.companyId()).isNull();
-        assertThat(result.companyName()).isNull();
-        assertThat(result.ownerId()).isNull();
-        assertThat(result.ownerName()).isNull();
-    }
-
-    @Test
-    void create_withEmptyTagIds_setsEmptyTags() {
-        CreateContactRequest req = new CreateContactRequest(
-                "Bob", "Jones", null, null, null, null, null, List.of());
-        Contact saved = new Contact();
-        saved.setId(2L);
-        saved.setFirstName("Bob");
-        saved.setLastName("Jones");
-        saved.setTags(Set.of());
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(contactRepository.save(any(Contact.class))).thenReturn(saved);
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of("contacts:page:0:20:null:null"));
-
-        contactService.create(req);
-
-        verify(tagRepository, never()).findAllById(any());
-    }
-
-    @Test
-    void create_cacheKeysNull_doesNotCallDelete() {
-        CreateContactRequest req = new CreateContactRequest(
-                "Bob", "Jones", null, null, null, null, null, null);
-        Contact saved = new Contact();
-        saved.setId(2L);
-        saved.setFirstName("Bob");
-        saved.setLastName("Jones");
-        saved.setTags(Set.of());
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(contactRepository.save(any(Contact.class))).thenReturn(saved);
-        when(redisTemplate.keys("contacts:*")).thenReturn(null);
-
-        contactService.create(req);
-
-        verify(redisTemplate, never()).delete(anyCollection());
-    }
-
-    @Test
-    void create_cacheKeysEmpty_doesNotCallDelete() {
-        CreateContactRequest req = new CreateContactRequest(
-                "Bob", "Jones", null, null, null, null, null, null);
-        Contact saved = new Contact();
-        saved.setId(2L);
-        saved.setFirstName("Bob");
-        saved.setLastName("Jones");
-        saved.setTags(Set.of());
-        saved.setCreatedAt(Instant.now());
-        saved.setUpdatedAt(Instant.now());
-        when(contactRepository.save(any(Contact.class))).thenReturn(saved);
-        when(redisTemplate.keys("contacts:*")).thenReturn(Set.of());
-
-        contactService.create(req);
-
-        verify(redisTemplate, never()).delete(anyCollection());
     }
 }

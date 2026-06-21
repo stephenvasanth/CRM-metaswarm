@@ -232,7 +232,7 @@ Development patterns and standards are documented in `guides/`:
 ### Backend rules (`crm-service/`)
 
 - **Architecture:** Controller → Service → Repository only. No business logic in controllers or repositories.
-- **Caching (mandatory):** Every read checks Redis first. On cache miss, fetch from PostgreSQL, write to Redis, return result. TTL = 24 hours on all entries. On any create/update/delete, invalidate all affected cache keys immediately.
+- **Caching:** Cache only `findById` (contacts, deals) and expensive aggregates (`deals:stats`) with TTL 24 h. Do NOT cache paginated list endpoints (`findAll`, `findByContactId`, `findByDealId`) — always read from DB. On update/delete, evict the specific ID key only. Never use Redis `KEYS` pattern scanning — use specific key deletes.
 - **Error responses:** Always return structured JSON `{ "error": { "code", "message", "fields?" } }`. Never return HTML error pages.
 - **Validation:** All request bodies validated with Bean Validation (`@Valid`) before reaching the service layer.
 - **JWT:** Tokens expire after 8 hours. Secret loaded from environment variable. Tokens must never appear in logs.
@@ -253,7 +253,7 @@ Development patterns and standards are documented in `guides/`:
 
 ## Key Decisions
 
-- **Redis cache-first for all reads** — Every read hits Redis before PostgreSQL. TTL = 24 h. Immediate invalidation on writes. This is a hard architectural constraint, not a suggestion (NFR-P03).
+- **Redis cache only for point lookups and expensive aggregates** — Cache `findById` (contacts, deals) and `getStats` (deals) with TTL 24 h. Do NOT cache paginated list endpoints (`findAll`, `findByContactId`, `findByDealId`) — these always read directly from the DB. On update/delete, evict only the specific ID key (`contacts:id:<id>`, `deals:id:<id>`). On create/delete of a deal, also evict `deals:stats`. Pattern-based cache scanning (`KEYS`) is prohibited — use specific key deletes only.
 - **Java 21 LTS for backend** — Chosen for long support window (until 2031) and Spring Boot 3.3.x compatibility. Use `JAVA_HOME`, not the system `java` (which is Java 8).
 - **Angular standalone components** — All components use `standalone: true`. No NgModules for feature code.
 - **JWT in localStorage** — Token attached to requests via HTTP interceptor. Cleared on 401/403. Redirects to `/login` on expiry.

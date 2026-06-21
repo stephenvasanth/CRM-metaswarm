@@ -121,6 +121,14 @@ describe('ContactService', () => {
       req.flush(rawPage);
       expect(result!.content[0].name).toBe('Alice Smith');
     });
+
+    it('should default content to empty array when null in response', () => {
+      let result: ContactPage | undefined;
+      service.getContacts().subscribe((p) => (result = p));
+      const req = httpMock.expectOne('/api/contacts');
+      req.flush({ ...rawPage, content: null });
+      expect(result!.content).toEqual([]);
+    });
   });
 
   describe('getContact()', () => {
@@ -166,6 +174,55 @@ describe('ContactService', () => {
       const req = httpMock.expectOne('/api/contacts/1');
       req.flush(rawNoCompany);
       expect(result!.company).toBeUndefined();
+    });
+
+    it('should default firstName/lastName/email to empty string when missing', () => {
+      const rawMinimal = { id: 2, tags: [], createdAt: '2024-01-01T00:00:00Z' };
+      let result: Contact | undefined;
+      service.getContact('2').subscribe((c) => (result = c));
+      const req = httpMock.expectOne('/api/contacts/2');
+      req.flush(rawMinimal);
+      expect(result!.firstName).toBe('');
+      expect(result!.lastName).toBe('');
+      expect(result!.name).toBe('');
+      expect(result!.email).toBe('');
+    });
+
+    it('should default tags to empty array when missing', () => {
+      const rawNoTags = { id: 3, firstName: 'A', lastName: 'B', email: 'a@b.com', createdAt: '2024-01-01T00:00:00Z' };
+      let result: Contact | undefined;
+      service.getContact('3').subscribe((c) => (result = c));
+      const req = httpMock.expectOne('/api/contacts/3');
+      req.flush(rawNoTags);
+      expect(result!.tags).toEqual([]);
+    });
+
+    it('should not set phone or jobTitle when absent', () => {
+      const rawNoBare = { id: 4, firstName: 'A', lastName: 'B', email: 'a@b.com', tags: [], createdAt: '2024-01-01T00:00:00Z' };
+      let result: Contact | undefined;
+      service.getContact('4').subscribe((c) => (result = c));
+      const req = httpMock.expectOne('/api/contacts/4');
+      req.flush(rawNoBare);
+      expect(result!.phone).toBeUndefined();
+      expect(result!.jobTitle).toBeUndefined();
+    });
+
+    it('should default companyName to empty string when companyId present but companyName is null', () => {
+      const rawNullName = { ...rawContact, companyId: 5, companyName: null };
+      let result: Contact | undefined;
+      service.getContact('1').subscribe((c) => (result = c));
+      const req = httpMock.expectOne('/api/contacts/1');
+      req.flush(rawNullName);
+      expect(result!.company!.name).toBe('');
+    });
+
+    it('should default ownerName to empty string when ownerId present but ownerName is null', () => {
+      const rawNullOwnerName = { ...rawContact, ownerId: 3, ownerName: null };
+      let result: Contact | undefined;
+      service.getContact('1').subscribe((c) => (result = c));
+      const req = httpMock.expectOne('/api/contacts/1');
+      req.flush(rawNullOwnerName);
+      expect(result!.owner!.name).toBe('');
     });
   });
 

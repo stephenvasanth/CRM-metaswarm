@@ -11,9 +11,9 @@ import { LogActivityDrawerComponent } from '../log-activity-drawer/log-activity-
   standalone: true,
   imports: [CommonModule, ActivityCardComponent, LogActivityDrawerComponent],
   template: `
-    <div class="activities-feed">
+    <div class="activities-feed" [class.activities-feed--page]="!contactId && !dealId">
       <div class="activities-feed__header">
-        <h3 class="activities-feed__title">Activities</h3>
+        <h1 class="activities-feed__title" [class.activities-feed__title--page]="!contactId && !dealId">Activities</h1>
         <button type="button" class="btn btn--primary btn--sm" (click)="openDrawer()">
           Log Activity
         </button>
@@ -42,6 +42,7 @@ import { LogActivityDrawerComponent } from '../log-activity-drawer/log-activity-
     </div>
   `,
   styles: [`
+    .activities-feed--page { padding: var(--space-6); max-width: 100%; }
     .activities-feed__header {
       display: flex;
       align-items: center;
@@ -49,6 +50,7 @@ import { LogActivityDrawerComponent } from '../log-activity-drawer/log-activity-
       margin-bottom: var(--space-4);
     }
     .activities-feed__title { font-size: var(--font-size-base); font-weight: var(--font-weight-medium); margin: 0; }
+    .activities-feed__title--page { font-size: var(--font-size-xl); font-weight: var(--font-weight-bold); color: var(--color-text-primary); }
     .activities-feed__loading, .activities-feed__empty { color: var(--color-text-secondary); font-size: var(--font-size-sm); }
     .activities-feed__list { display: flex; flex-direction: column; gap: var(--space-3); }
     .btn--sm { padding: var(--space-1) var(--space-3); font-size: var(--font-size-sm); }
