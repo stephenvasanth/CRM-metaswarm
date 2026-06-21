@@ -155,10 +155,10 @@ import { TagChipComponent } from '../../../shared/components/tag-chip/tag-chip.c
                         <label class="tag-select__option">
                           <input
                             type="checkbox"
-                            [checked]="isTagSelected(tag.id)"
-                            (change)="toggleTag(tag.id)"
+                            [checked]="isTagSelected(tag.id.toString())"
+                            (change)="toggleTag(tag.id.toString())"
                           />
-                          <app-tag-chip [tag]="tag" />
+                          <app-tag-chip [tag]="tagAsChip(tag)" />
                         </label>
                       }
                     }
@@ -530,6 +530,10 @@ export class ContactFormComponent implements OnInit, OnDestroy {
 
   toggleTagDropdown(): void {
     this.showTagDropdown = !this.showTagDropdown;
+  }
+
+  tagAsChip(tag: TagWithCount): Tag {
+    return { id: String(tag.id), name: tag.name, colour: tag.colour };
   }
 
   onSubmit(): void {

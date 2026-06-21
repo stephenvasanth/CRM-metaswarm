@@ -1,5 +1,6 @@
 package com.crm.config;
 
+import com.crm.config.PasswordEncoderConfig;
 import com.crm.domain.activity.ActivityService;
 import com.crm.domain.auth.AuthService;
 import com.crm.domain.dashboard.DashboardService;
@@ -26,7 +27,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
 @WebMvcTest
-@Import({SecurityConfig.class, JwtTokenProvider.class, JwtProperties.class,
+@Import({SecurityConfig.class, PasswordEncoderConfig.class, JwtTokenProvider.class, JwtProperties.class,
         JwtAuthenticationFilter.class})
 class SecurityConfigTest {
 
@@ -61,20 +62,18 @@ class SecurityConfigTest {
     private MockMvc mockMvc;
 
     @Autowired
-    private SecurityConfig securityConfig;
+    private PasswordEncoder passwordEncoder;
 
     @Test
     void passwordEncoder_isBCrypt() throws Exception {
-        PasswordEncoder encoder = securityConfig.passwordEncoder();
-        assertThat(encoder).isInstanceOf(BCryptPasswordEncoder.class);
+        assertThat(passwordEncoder).isInstanceOf(BCryptPasswordEncoder.class);
     }
 
     @Test
     void passwordEncoder_encodesAndVerifies() throws Exception {
-        PasswordEncoder encoder = securityConfig.passwordEncoder();
         String raw = "mySecurePassword123";
-        String encoded = encoder.encode(raw);
-        assertThat(encoder.matches(raw, encoded)).isTrue();
+        String encoded = passwordEncoder.encode(raw);
+        assertThat(passwordEncoder.matches(raw, encoded)).isTrue();
     }
 
     @Test

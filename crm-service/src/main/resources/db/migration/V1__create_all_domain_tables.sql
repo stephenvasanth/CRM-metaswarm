@@ -79,6 +79,7 @@ CREATE TABLE IF NOT EXISTS deals (
     value            NUMERIC(15, 2) NOT NULL DEFAULT 0,
     stage            VARCHAR(30)    NOT NULL DEFAULT 'LEAD',
     expected_close   DATE,
+    notes            TEXT,
     contact_id       BIGINT REFERENCES contacts (id) ON DELETE SET NULL,
     owner_id         BIGINT REFERENCES users (id)    ON DELETE SET NULL,
     created_at       TIMESTAMPTZ    NOT NULL DEFAULT NOW(),
