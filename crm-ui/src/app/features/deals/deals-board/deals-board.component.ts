@@ -1,6 +1,7 @@
 import { Component, OnInit, OnDestroy, inject } from '@angular/core';
 import { Subject } from 'rxjs';
 import { takeUntil } from 'rxjs/operators';
+import { CdkDragDrop, DragDropModule } from '@angular/cdk/drag-drop';
 import { DealService, Deal, DealStage, DEAL_STAGES } from '../../../core/services/deal.service';
 import { ToastService } from '../../../core/services/toast.service';
 import { DealDrawerComponent } from '../deal-drawer/deal-drawer.component';
@@ -8,7 +9,7 @@ import { DealDrawerComponent } from '../deal-drawer/deal-drawer.component';
 @Component({
   selector: 'app-deals-board',
   standalone: true,
-  imports: [DealDrawerComponent],
+  imports: [DealDrawerComponent, DragDropModule],
   template: `
     <div class="board-page">
       <div class="board-page__header">
@@ -19,7 +20,7 @@ import { DealDrawerComponent } from '../deal-drawer/deal-drawer.component';
       @if (loading) {
         <div class="board__loading"><span>Loading pipeline...</span></div>
       } @else {
-        <div class="board__columns">
+        <div class="board__columns" cdkDropListGroup>
           @for (stage of stages; track stage.key) {
             @let stageDeals = dealsForStage(stage.key);
             <div class="board__column">
@@ -27,11 +28,18 @@ import { DealDrawerComponent } from '../deal-drawer/deal-drawer.component';
                 <span class="board__stage-name">{{ stage.label.toUpperCase() }}</span>
                 <span class="board__stage-meta">{{ stageDeals.length }} · {{ formatValue(stageDeals) }}</span>
               </div>
-              <div class="board__column-body">
+              <div class="board__column-body"
+                   cdkDropList
+                   [id]="stage.key"
+                   [cdkDropListData]="dealsForStage(stage.key)"
+                   [cdkDropListConnectedTo]="stageKeys"
+                   (cdkDropListDropped)="onDrop($event, stage.key)">
                 @for (deal of stageDeals; track deal.id) {
                   <div class="board__card"
+                       cdkDrag
                        [class.board__card--closed-lost]="stage.key === 'CLOSED_LOST'"
                        (click)="openDrawer(deal)">
+                    <span class="board__drag-handle" cdkDragHandle>⠿</span>
                     <div class="board__card-title">{{ deal.title }}</div>
                     @if (deal.contact) {
                       <div class="board__card-contact">{{ deal.contact.name }}</div>
@@ -95,6 +103,33 @@ import { DealDrawerComponent } from '../deal-drawer/deal-drawer.component';
     .board__card-stage { width: 100%; margin-top: var(--space-2); font-size: var(--font-size-xs); border: 1px solid var(--color-border); border-radius: var(--radius-sm); padding: var(--space-1); background: var(--color-surface); cursor: pointer; }
     .btn { padding: var(--space-2) var(--space-4); border-radius: var(--radius-md); font-size: var(--font-size-sm); font-weight: var(--font-weight-medium); cursor: pointer; border: none; }
     .btn--primary { background: var(--color-primary); color: #fff; }
+
+    /* Drag handle — visible on card hover */
+    .board__drag-handle {
+      display: none;
+      cursor: grab;
+      color: var(--color-text-secondary);
+      font-size: 1rem;
+      line-height: 1;
+      margin-bottom: var(--space-1);
+    }
+    .board__card:hover .board__drag-handle { display: block; }
+
+    /* CDK drag visual states */
+    .cdk-drag-preview {
+      box-shadow: var(--shadow-lg, 0 10px 25px rgba(0,0,0,0.2));
+      transform: scale(1.02);
+      border-radius: var(--radius-md);
+      background: var(--color-surface);
+      padding: var(--space-3);
+    }
+    .cdk-drag-placeholder { opacity: 0.3; }
+    .cdk-drag-animating { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
+    .cdk-drop-list-dragging .board__card:not(.cdk-drag-placeholder) { transition: transform 250ms cubic-bezier(0,0,0.2,1); }
+    .board__column-body.cdk-drop-list-dragging {
+      border: 2px dashed var(--color-primary);
+      border-radius: var(--radius-md);
+    }
   `]
 })
 export class DealsBoardComponent implements OnInit, OnDestroy {
@@ -107,6 +142,10 @@ export class DealsBoardComponent implements OnInit, OnDestroy {
   loading = false;
   showDrawer = false;
   selectedDeal: Deal | null = null;
+
+  get stageKeys(): string[] {
+    return this.stages.map(s => s.key);
+  }
 
   ngOnInit(): void {
     this.loadDeals();
@@ -168,6 +207,29 @@ export class DealsBoardComponent implements OnInit, OnDestroy {
       next: () => this.loadDeals(),
       error: () => this.toastService.add('Failed to update stage', 'error'),
     });
+  }
+
+  onDrop(event: CdkDragDrop<Deal[]>, targetStage: DealStage): void {
+    // No-op if dropped in same column
+    if (event.previousContainer === event.container) return;
+
+    const deal: Deal = event.previousContainer.data[event.previousIndex];
+    const originalStage = deal.stage;
+
+    // Optimistic update — mutate the deal's stage immediately so dealsForStage()
+    // reflects the new column before the API responds
+    deal.stage = targetStage;
+
+    this.dealService.updateDealStage(deal.id, targetStage)
+      .pipe(takeUntil(this.destroy$))
+      .subscribe({
+        next: () => {},
+        error: () => {
+          // Revert to original stage on failure
+          deal.stage = originalStage;
+          this.toastService.add('Failed to move deal', 'error');
+        },
+      });
   }
 
   ngOnDestroy(): void {

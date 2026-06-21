@@ -1,5 +1,6 @@
 import { ComponentFixture, TestBed } from '@angular/core/testing';
 import { of, throwError, Subject } from 'rxjs';
+import { CdkDragDrop } from '@angular/cdk/drag-drop';
 import { DealsBoardComponent } from './deals-board.component';
 import { DealService, Deal, DealStage } from '../../../core/services/deal.service';
 import { ContactService, ContactPage } from '../../../core/services/contact.service';
@@ -35,6 +36,27 @@ describe('DealsBoardComponent', () => {
   };
 
   const emptyPage: ContactPage = { content: [], totalElements: 0, totalPages: 0, number: 0, size: 20 };
+
+  function makeDrop(
+    deal: Deal,
+    fromIndex: number,
+    toIndex: number,
+    sameContainer: boolean
+  ): CdkDragDrop<Deal[]> {
+    const container = { data: [deal] } as any;
+    const previousContainer = sameContainer ? container : { data: [deal] } as any;
+    return {
+      item: {} as any,
+      currentIndex: toIndex,
+      previousIndex: fromIndex,
+      container,
+      previousContainer,
+      isPointerOverContainer: true,
+      distance: { x: 0, y: 0 },
+      dropPoint: { x: 0, y: 0 },
+      event: new MouseEvent('mouseup'),
+    } as CdkDragDrop<Deal[]>;
+  }
 
   beforeEach(async () => {
     dealServiceSpy = jasmine.createSpyObj('DealService', ['getDeals', 'updateDealStage']);
@@ -191,6 +213,11 @@ describe('DealsBoardComponent', () => {
       fixture.detectChanges();
       expect(fixture.nativeElement.querySelector('.board__card-date')).toBeNull();
     });
+
+    it('should render drag handle on each card', () => {
+      const handles = fixture.nativeElement.querySelectorAll('.board__drag-handle');
+      expect(handles.length).toBe(3);
+    });
   });
 
   describe('drawer', () => {
@@ -251,6 +278,38 @@ describe('DealsBoardComponent', () => {
       const clickEvent = new MouseEvent('click', { bubbles: true });
       select.dispatchEvent(clickEvent);
       expect(openSpy).not.toHaveBeenCalled();
+    });
+  });
+
+  describe('stageKeys', () => {
+    it('should return all stage keys from stageKeys getter', () => {
+      expect(component.stageKeys).toEqual(['LEAD', 'QUALIFIED', 'PROPOSAL', 'NEGOTIATION', 'CLOSED_WON', 'CLOSED_LOST']);
+    });
+  });
+
+  describe('onDrop', () => {
+    it('should be a no-op when dropped in the same container', () => {
+      const event = makeDrop(leadDeal, 0, 0, true);
+      component.onDrop(event, 'LEAD');
+      expect(dealServiceSpy.updateDealStage).not.toHaveBeenCalled();
+    });
+
+    it('should optimistically update stage and call updateDealStage on cross-column drop', () => {
+      dealServiceSpy.updateDealStage = jasmine.createSpy().and.returnValue(of(leadDeal));
+      const event = makeDrop(leadDeal, 0, 0, false);
+      component.onDrop(event, 'QUALIFIED');
+      expect(leadDeal.stage).toBe('QUALIFIED');
+      expect(dealServiceSpy.updateDealStage).toHaveBeenCalledWith('1', 'QUALIFIED');
+      // restore for other tests
+      leadDeal.stage = 'LEAD';
+    });
+
+    it('should revert stage and show error toast on server error', () => {
+      dealServiceSpy.updateDealStage = jasmine.createSpy().and.returnValue(throwError(() => new Error()));
+      const event = makeDrop(leadDeal, 0, 0, false);
+      component.onDrop(event, 'QUALIFIED');
+      expect(leadDeal.stage).toBe('LEAD'); // reverted
+      expect(toastServiceSpy.add).toHaveBeenCalledWith('Failed to move deal', 'error');
     });
   });
 
